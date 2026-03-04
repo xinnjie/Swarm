@@ -74,7 +74,7 @@ public struct Tools: AgentComponent {
     }
 }
 
-// MARK: - AgentMemoryComponent
+// MARK: - AgentMemory
 
 /// Memory component for agent context management.
 ///
@@ -82,10 +82,10 @@ public struct Tools: AgentComponent {
 /// ```swift
 /// let agent = Agent {
 ///     Instructions("Memory-enabled agent.")
-///     AgentMemoryComponent(ConversationMemory(maxMessages: 50))
+///     AgentMemory(ConversationMemory(maxMessages: 50))
 /// }
 /// ```
-public struct AgentMemoryComponent: AgentComponent {
+public struct AgentMemory: AgentComponent {
     /// The memory system.
     public let memory: any Memory
 
@@ -96,6 +96,9 @@ public struct AgentMemoryComponent: AgentComponent {
         self.memory = memory
     }
 }
+
+@available(*, deprecated, renamed: "AgentMemory")
+public typealias AgentMemoryComponent = AgentMemory
 
 // MARK: - Configuration
 
@@ -150,7 +153,7 @@ public struct InferenceProviderComponent: AgentComponent {
     }
 }
 
-// MARK: - TracerComponent
+// MARK: - TracerConfig
 
 /// Tracer component for agent observability.
 ///
@@ -158,10 +161,10 @@ public struct InferenceProviderComponent: AgentComponent {
 /// ```swift
 /// let agent = Agent {
 ///     Instructions("Observable agent.")
-///     TracerComponent(ConsoleTracer())
+///     TracerConfig(ConsoleTracer())
 /// }
 /// ```
-public struct TracerComponent: AgentComponent {
+public struct TracerConfig: AgentComponent {
     /// The tracer.
     public let tracer: any Tracer
 
@@ -173,7 +176,10 @@ public struct TracerComponent: AgentComponent {
     }
 }
 
-// MARK: - InputGuardrailsComponent
+@available(*, deprecated, renamed: "TracerConfig")
+public typealias TracerComponent = TracerConfig
+
+// MARK: - InputGuardrails
 
 /// Input guardrails component for validating agent inputs.
 ///
@@ -181,10 +187,10 @@ public struct TracerComponent: AgentComponent {
 /// ```swift
 /// let agent = Agent {
 ///     Instructions("Secure agent.")
-///     InputGuardrailsComponent(sensitiveDataGuardrail, piiDetectionGuardrail)
+///     InputGuardrails(sensitiveDataGuardrail, piiDetectionGuardrail)
 /// }
 /// ```
-public struct InputGuardrailsComponent: AgentComponent {
+public struct InputGuardrails: AgentComponent {
     /// The input guardrails.
     public let guardrails: [any InputGuardrail]
 
@@ -203,7 +209,10 @@ public struct InputGuardrailsComponent: AgentComponent {
     }
 }
 
-// MARK: - OutputGuardrailsComponent
+@available(*, deprecated, renamed: "InputGuardrails")
+public typealias InputGuardrailsComponent = InputGuardrails
+
+// MARK: - OutputGuardrails
 
 /// Output guardrails component for validating agent outputs.
 ///
@@ -211,10 +220,10 @@ public struct InputGuardrailsComponent: AgentComponent {
 /// ```swift
 /// let agent = Agent {
 ///     Instructions("Safe agent.")
-///     OutputGuardrailsComponent(profanityFilterGuardrail, toxicityGuardrail)
+///     OutputGuardrails(profanityFilterGuardrail, toxicityGuardrail)
 /// }
 /// ```
-public struct OutputGuardrailsComponent: AgentComponent {
+public struct OutputGuardrails: AgentComponent {
     /// The output guardrails.
     public let guardrails: [any OutputGuardrail]
 
@@ -233,7 +242,10 @@ public struct OutputGuardrailsComponent: AgentComponent {
     }
 }
 
-// MARK: - HandoffsComponent
+@available(*, deprecated, renamed: "OutputGuardrails")
+public typealias OutputGuardrailsComponent = OutputGuardrails
+
+// MARK: - Handoffs
 
 /// Component providing handoff configurations for an agent.
 ///
@@ -244,13 +256,13 @@ public struct OutputGuardrailsComponent: AgentComponent {
 /// ```swift
 /// let agent = Agent {
 ///     Instructions("Coordinator agent.")
-///     HandoffsComponent([
+///     Handoffs([
 ///         AnyHandoffConfiguration(handoff(to: plannerAgent)),
 ///         AnyHandoffConfiguration(handoff(to: executorAgent))
 ///     ])
 /// }
 /// ```
-public struct HandoffsComponent: AgentComponent, Sendable {
+public struct Handoffs: AgentComponent, Sendable {
     /// The handoff configurations.
     public let handoffs: [AnyHandoffConfiguration]
 
@@ -280,6 +292,9 @@ public struct HandoffsComponent: AgentComponent, Sendable {
         handoffs = result
     }
 }
+
+@available(*, deprecated, renamed: "Handoffs")
+public typealias HandoffsComponent = Handoffs
 
 // MARK: - ParallelToolCalls
 
@@ -388,7 +403,7 @@ public struct ModelSettingsComponent: AgentComponent {
     }
 }
 
-// MARK: - MCPClientComponent
+// MARK: - MCPClientConfig
 
 /// MCP client component for dynamic tool discovery.
 ///
@@ -402,10 +417,10 @@ public struct ModelSettingsComponent: AgentComponent {
 ///
 /// let agent = Agent {
 ///     Instructions("MCP-enabled agent.")
-///     MCPClientComponent(mcpClient)
+///     MCPClientConfig(mcpClient)
 /// }
 /// ```
-public struct MCPClientComponent: AgentComponent {
+public struct MCPClientConfig: AgentComponent {
     /// The MCP client for tool discovery.
     public let client: MCPClient
 
@@ -416,6 +431,9 @@ public struct MCPClientComponent: AgentComponent {
         self.client = client
     }
 }
+
+@available(*, deprecated, renamed: "MCPClientConfig")
+public typealias MCPClientComponent = MCPClientConfig
 
 // MARK: - AgentBuilder
 
@@ -434,7 +452,7 @@ public struct MCPClientComponent: AgentComponent {
 ///         DateTimeTool()
 ///     }
 ///
-///     AgentMemoryComponent(ConversationMemory(maxMessages: 100))
+///     AgentMemory(ConversationMemory(maxMessages: 100))
 ///
 ///     Configuration(.default
 ///         .maxIterations(10)
@@ -564,19 +582,19 @@ public struct AgentBuilder {
             result.instructions = instructions.text
         case let tools as Tools:
             result.tools.append(contentsOf: tools.tools)
-        case let memory as AgentMemoryComponent:
+        case let memory as AgentMemory:
             result.memory = memory.memory
         case let config as Configuration:
             result.configuration = config.configuration
         case let provider as InferenceProviderComponent:
             result.inferenceProvider = provider.provider
-        case let tracerComponent as TracerComponent:
+        case let tracerComponent as TracerConfig:
             result.tracer = tracerComponent.tracer
-        case let inputGuardrails as InputGuardrailsComponent:
+        case let inputGuardrails as InputGuardrails:
             result.inputGuardrails.append(contentsOf: inputGuardrails.guardrails)
-        case let outputGuardrails as OutputGuardrailsComponent:
+        case let outputGuardrails as OutputGuardrails:
             result.outputGuardrails.append(contentsOf: outputGuardrails.guardrails)
-        case let handoffsComponent as HandoffsComponent:
+        case let handoffsComponent as Handoffs:
             result.handoffs.append(contentsOf: handoffsComponent.handoffs)
         // Phase 5 components
         case let parallelToolCalls as ParallelToolCalls:
@@ -588,7 +606,7 @@ public struct AgentBuilder {
         // Phase 6 components
         case let modelSettingsComponent as ModelSettingsComponent:
             result.modelSettings = modelSettingsComponent.settings
-        case let mcpClientComponent as MCPClientComponent:
+        case let mcpClientComponent as MCPClientConfig:
             result.mcpClient = mcpClientComponent.client
         default:
             // `AgentComponent` is not designed for external conformance — the builder

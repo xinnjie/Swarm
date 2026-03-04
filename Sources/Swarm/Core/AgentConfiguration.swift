@@ -15,20 +15,6 @@ public enum ContextMode: Sendable, Equatable {
     case strict4k
 }
 
-/// Runtime execution mode for orchestration.
-public enum SwarmRuntimeMode: Sendable, Equatable {
-    /// Execute orchestration using the Hive runtime.
-    case hive
-
-    /// Deprecated: Legacy mode selector, now same as `.hive`.
-    @available(*, deprecated, renamed: "hive")
-    case swift
-
-    /// Deprecated: Alias for `.hive`.
-    @available(*, deprecated, renamed: "hive")
-    case requireHive
-}
-
 /// Optional Hive run options override for orchestration execution.
 struct SwarmHiveRunOptionsOverride: Sendable, Equatable {
     var maxSteps: Int?

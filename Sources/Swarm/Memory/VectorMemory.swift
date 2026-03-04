@@ -169,7 +169,7 @@ public actor VectorMemory: Memory {
         } catch {
             Log.memory.error("Failed to embed query: \(error.localizedDescription)")
             // Fallback to simple recency-based context
-            return formatMessagesForContext(
+            return MemoryMessage.formatContext(
                 embeddedMessages.map(\.message),
                 tokenLimit: tokenLimit,
                 tokenEstimator: tokenEstimator
