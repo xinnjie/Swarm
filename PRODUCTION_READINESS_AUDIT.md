@@ -363,50 +363,77 @@ All memory implementations store conversation messages without PII filtering. Th
 
 | Subsystem | Test Files | Coverage Level | Verdict |
 |-----------|-----------|----------------|---------|
-| Core (AgentRuntime, AgentResult, AgentEvent, etc.) | 15 files | Good | Adequate |
-| Agents (Agent, ReActAgent) | 8 files | Good | Missing PlanAndExecuteAgent, RelayAgent |
-| Orchestration | 17 files | Good | Covers DAG, Router, Handoff, Parallel, Sequential |
-| Memory | 12 files | Good | All implementations tested |
-| Tools | 10 files | Good | Arithmetic parser, parallel executor well tested |
-| Resilience | 6 files | Good | Circuit breaker, rate limiter, retry, fallback covered |
-| MCP | 8 files | Good | Client, server, protocol tested |
-| Observability | 11 files | Good | Tracers, metrics, spans tested |
-| Guardrails | 6 files | Good | Input, output, tool guardrails tested |
-| Macros | 5 files | Good | All macros have expansion tests |
-| Providers | 8 files | Moderate | Conduit, MultiProvider tested; OpenRouter partially |
-| HiveSwarm | 5 files | Moderate | Bridge and streaming tested |
+| Subsystem | Estimated Coverage | Test Files | Verdict |
+|-----------|-------------------|-----------|---------|
+| Core (AgentRuntime, AgentResult, AgentEvent) | ~85% | 15 | Adequate |
+| Agents (Agent, ReActAgent) | ~70% | 8 | ChatAgent, PlanAndExecuteAgent untested |
+| Orchestration | ~75% | 17 | DAG/Sequential/Parallel solid; Router/Guard sparse |
+| Memory | ~80% | 12 | ConversationMemory/Summary/Sliding tested; VectorMemory incomplete |
+| Tools | ~85% | 10 | Schema/execution solid; guardrail composition missing |
+| Resilience | ~60% | 6 | Basic paths only; no stress/concurrency tests |
+| MCP | ~50% | 8 | Happy path only; error recovery/concurrency untested |
+| Observability | ~80% | 11 | Tracers, metrics, spans well tested |
+| Guardrails | ~65% | 6 | Individual types tested; composition missing |
+| Macros | ~70% | 5 | Expansion verified; integration weak |
+| Providers | ~55% | 8 | Conduit/MultiProvider tested; OpenRouter partial |
+| HiveSwarm | ~60% | 5 | Bridge tested; streaming race conditions unverified |
 
-### 7.2 MAJOR: Missing Test Coverage
+**Overall: 2,263 test cases across 161 files (~46,366 lines of test code)**
 
-| Gap | Severity | Impact |
-|-----|----------|--------|
-| **PlanAndExecuteAgent** — no dedicated test file | MAJOR | Complex agent with planning, execution, replanning untested |
-| **RelayAgent** — no dedicated test file | MAJOR | Agent delegation path untested |
-| **Chat** — no dedicated test file | MINOR | Chat interface untested |
-| **Cancellation stress tests** — no concurrent cancellation scenarios | MAJOR | Race conditions in cancel paths unverified |
-| **Stream termination tests** — no tests for orphaned streams | MAJOR | Resource leak scenarios unverified |
-| **OpenRouter provider end-to-end** — only type tests | MAJOR | API integration path untested |
-| **WorkflowCheckpoint** — file-based checkpoint persistence untested | MINOR | Checkpoint reliability unverified |
-| **Property-based / fuzz testing** — none | MINOR | Edge cases from random inputs unexplored |
+### 7.2 MAJOR: Critical Test Coverage Gaps
 
-### 7.3 MAJOR: Mock Quality Concerns
+| Gap | Severity | What's Missing |
+|-----|----------|----------------|
+| **PlanAndExecuteAgent** — no dedicated test file | BLOCKER | ~600 lines of planning/execution/replanning logic with zero tests. No tests for plan generation, step execution, dependency resolution, circular dependencies, or max iteration limits |
+| **ChatAgent** — no dedicated test file | MAJOR | Public API with no isolated test. Only referenced in session seeding tests. No tests for empty input, memory integration, error paths |
+| **VectorMemory** — no unit tests | MAJOR | Critical for RAG-style agents. No tests for semantic search, embedding caching, cosine similarity edge cases, or capacity eviction |
+| **SupervisorAgent routing** — undertested | MAJOR | Only init/basic flow tested. No tests for KeywordRoutingStrategy correctness, misrouted queries, 10+ agents, or dynamic registration |
+| **MCP error recovery** — not tested | MAJOR | No tests for server crash recovery, network timeout, concurrent tool calls, protocol version mismatch, or malformed responses |
+| **Resilience stress testing** — absent | MAJOR | No concurrent stress tests for CircuitBreaker state transitions, RateLimiter burst recovery, or retry backoff math correctness |
+| **Cancellation stress tests** — none | MAJOR | No tests for concurrent cancel/run races across any agent type |
+| **Stream termination** — no tests for orphaned streams | MAJOR | Resource leak scenarios from abandoned async streams completely unverified |
+| **RelayAgent** — no dedicated test file | MAJOR | Agent delegation path untested in isolation |
+| **Guardrail composition** — no end-to-end tests | MINOR | No tests combining input + tool + output guardrails in a single execution |
+| **Property-based / fuzz testing** — none | MINOR | Edge cases from random inputs completely unexplored |
+
+### 7.3 MAJOR: Weak Assertion Patterns
+
+47 test cases use `Issue.record()` or `#expect(true)` (trivially-passing assertions). These tests record failures but don't assert specific conditions — failures can go unnoticed in CI. Example: `FluentResilienceTests.swift:37` catches an error but doesn't verify the error type.
+
+**Remediation:** Replace all `Issue.record()` patterns with proper `#expect()` or `await #expect(throws:)`.
+
+### 7.4 MAJOR: Mock Quality Concerns
 
 The `MockInferenceProvider` returns static responses, which is appropriate for unit testing but insufficient for:
 - **Streaming behavior** — mocks don't simulate partial delivery, back-pressure, or mid-stream failures
 - **Tool call patterns** — mocks don't simulate complex multi-turn tool call sequences
 - **Latency simulation** — no mocks introduce realistic timing for timeout testing
+- **MockAgentMemory** uses silent `try?` in `add()` and `context()` — should fail hard in tests
 
-### 7.4 MINOR: Test-Only `@unchecked Sendable` Usage
+### 7.5 MINOR: Test-Only `@unchecked Sendable` Usage
 
 8+ test files use `@unchecked Sendable` for mock classes. While acceptable for testing, these mocks could mask real concurrency issues that would appear in production. Consider converting test mocks to actors where feasible.
 
-### 7.5 Testing Strengths
+### 7.6 Testing Strengths
 
 - **Macro expansion tests** are thorough — all 5 macros have dedicated test suites
 - **Guardrail integration tests** are comprehensive with both passing and failing scenarios
 - **Resilience tests** cover circuit breaker state transitions, rate limiter token refill, retry backoff
 - **161 test files** for 200 source files — strong test-to-source ratio
 - **Consistent use of Swift Testing** (`@Test`, `@Suite`) — modern test framework adoption
+- **Well-organized structure** — test directory mirrors source directory layout
+- **Good mock isolation** — 4 main mocks prevent external dependencies
+
+### 7.7 Test Files That Should Be Created
+
+| File | Priority | Est. Tests |
+|------|----------|-----------|
+| `Tests/SwarmTests/Agents/PlanAndExecuteAgentTests.swift` | BLOCKER | 40+ |
+| `Tests/SwarmTests/Agents/ChatAgentTests.swift` | MAJOR | 15+ |
+| `Tests/SwarmTests/Memory/VectorMemoryTests.swift` | MAJOR | 20+ |
+| `Tests/SwarmTests/MCP/MCPErrorRecoveryTests.swift` | MAJOR | 25+ |
+| `Tests/SwarmTests/Resilience/ResilienceStressTests.swift` | MAJOR | 20+ |
+| `Tests/SwarmTests/Agents/RelayAgentTests.swift` | MAJOR | 10+ |
 
 ---
 
@@ -499,10 +526,10 @@ This target is appended unconditionally (not gated by any flag), while `SwarmDem
 
 | Severity | Count | Categories |
 |----------|-------|------------|
-| **BLOCKER** | 4 | Runtime crash, NSLock deadlocks, infinite loops, stack overflow |
-| **MAJOR** | 16 | Data loss, race conditions, missing tests, error swallowing, path traversal, info disclosure, injection |
-| **MINOR** | 11 | Config validation, unnecessary wrappers, stub files, performance |
-| **Total** | 31 | |
+| **BLOCKER** | 5 | Runtime crash, NSLock deadlocks, infinite loops, stack overflow, PlanAndExecuteAgent untested |
+| **MAJOR** | 20 | Data loss, race conditions, missing tests (7 critical gaps), weak assertions, error swallowing, path traversal, info disclosure, injection |
+| **MINOR** | 12 | Config validation, unnecessary wrappers, stub files, performance, guardrail composition |
+| **Total** | 37 | |
 
 ---
 
@@ -530,11 +557,13 @@ This target is appended unconditionally (not gated by any flag), while `SwarmDem
 
 ### Medium-Term (Week 4-6)
 
-11. Write tests for PlanAndExecuteAgent, RelayAgent, Chat
-12. Add cancellation stress tests
-13. Add stream termination tests
-14. Optimize DAG cycle detection and MetricsSnapshot percentile computation
-15. Remove stub files, clean up deprecated DSL layer
+15. Write tests for PlanAndExecuteAgent (40+), ChatAgent (15+), VectorMemory (20+), RelayAgent (10+)
+16. Add MCP error recovery tests (25+)
+17. Add resilience stress tests — concurrent CircuitBreaker/RateLimiter (20+)
+18. Add cancellation stress tests and stream termination tests
+19. Replace all 47 `Issue.record()` / `#expect(true)` patterns with proper assertions
+20. Optimize DAG cycle detection and MetricsSnapshot percentile computation
+21. Remove stub files, clean up deprecated DSL layer
 
 ### Long-Term
 
