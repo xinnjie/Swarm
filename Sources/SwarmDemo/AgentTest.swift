@@ -33,14 +33,13 @@ struct MyApp {
 
         // Swarm allows you to build autonomous agents that can use tools.
         // Explore the docs in the 'docs/' directory for more examples.
-
-        let instruction = "Your a research Agent"
         guard let openRouterKey = ProcessInfo.processInfo.environment["OPENROUTER_API_KEY"], !openRouterKey.isEmpty else {
             fatalError("Missing OPENROUTER_API_KEY in environment variables.")
         }
+
         let config: OpenRouterConfiguration
         do {
-            config = try OpenRouterConfiguration(apiKey: openRouterKey, model: .init("xiaomi/mimo-v2-flash:free"))
+            config = try OpenRouterConfiguration(apiKey: openRouterKey, model: .init("qwen/qwen3.5-flash-02-23"))
         } catch {
             fatalError("Failed to create OpenRouterConfiguration: \(error)")
         }
@@ -74,15 +73,19 @@ struct MyApp {
 
 
         
-
-        let agent = ReActAgent.Builder()
-            .instructions("Your a deep research Agent, when you dont find something you keep looking ")
-            .inferenceProvider(inferenceProvider)
-            .addTool(searchTool)
-            .addTool(StringTool())
-            .addTool(DateTimeTool())
-            .tracer(PrettyConsoleTracer())
-            .build()
+        let agent: ReActAgent
+        do {
+            agent = try ReActAgent.Builder()
+                .instructions("Your a deep research Agent, when you dont find something you keep looking ")
+                .inferenceProvider(inferenceProvider)
+                .addTool(searchTool)
+                .addTool(StringTool())
+                .addTool(DateTimeTool())
+                .tracer(PrettyConsoleTracer())
+                .build()
+        } catch {
+            fatalError("Failed to build ReActAgent: \(error)")
+        }
 
        
    //     let age = SupervisorAgent(agents: [planAgent, agent], routingStrategy: session)
@@ -91,31 +94,44 @@ struct MyApp {
             do {
                 for try await event in agent.stream(input) {
                     switch event {
-                    // Text output from the agent
+                    case .started:
+                        break
                     case .thinking(thought: let text):
                         print(text, terminator: "")
-
-                    // A tool call is about to be made
-                    // The result of a tool call
+                    case .thinkingPartial(partialThought: let text):
+                        print(text, terminator: "")
                     case .toolCallStarted(call: let tool):
                         print("""
                         ✅ Tool \"\(tool.toolName)\" returned:
                         \(tool.description)
                         """)
-
-                        
+                    case .toolCallPartial:
+                        break
                     case .toolCallCompleted(call: let tool, result: let result):
                         print("""
                         ✅ Tool \"\(tool.toolName)\" returned:
                         \(result.output)
                         """)
-                    // The agent has finished its reasoning loop
+                    case .toolCallFailed(call: let tool, error: let error):
+                        print("❌ Tool \"\(tool.toolName)\" failed: \(error)")
+                    case .outputToken:
+                        break
+                    case .outputChunk(chunk: let chunk):
+                        print(chunk, terminator: "")
+                    case .iterationStarted, .iterationCompleted:
+                        break
+                    case .llmStarted, .llmCompleted:
+                        break
                     case .completed(result: let result):
                         print("""
                         🏁 Finished with reason: \(result.output)
                         """)
-
-                    // Any other event type that may be added later
+                    case .failed(error: let error):
+                        print("❌ Agent failed: \(error)")
+                    case .cancelled:
+                        print("⚠️ Agent cancelled")
+                    case .guardrailFailed(error: let error):
+                        print("❌ Guardrail failed: \(error)")
                     default:
                         print("⚠️ Unhandled event: \(event)")
                     }
@@ -152,7 +168,7 @@ extension LanguageModelSession: InferenceProvider {
 
     public func generateWithToolCalls(
         prompt: String,
-        tools: [ToolDefinition],
+        tools _: [ToolSchema],
         options _: InferenceOptions
     ) async throws -> InferenceResponse {
         let response = try await respond(to: prompt)
