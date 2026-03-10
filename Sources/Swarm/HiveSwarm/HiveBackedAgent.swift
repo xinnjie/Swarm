@@ -538,11 +538,38 @@ public struct HiveBackedAgent: AgentRuntime, Sendable {
             return .invalidInput(reason: "Hive interrupt pending: \(interruptID.rawValue)")
         case .noCheckpointToResume:
             return .invalidInput(reason: "Hive resume requested with no checkpoint to resume.")
+        case let .checkpointNotFound(id):
+            return .invalidInput(reason: "Hive checkpoint not found: \(id.rawValue)")
         case .noInterruptToResume:
             return .invalidInput(reason: "Hive resume requested with no pending interrupt.")
         case let .resumeInterruptMismatch(expected, found):
             return .invalidInput(
                 reason: "Hive resume interrupt mismatch (expected \(expected.rawValue), found \(found.rawValue))."
+            )
+        case let .forkSourceCheckpointMissing(threadID, checkpointID):
+            return .invalidInput(
+                reason: """
+                Hive fork source checkpoint missing for thread \(threadID.rawValue) \
+                and checkpoint \(checkpointID?.rawValue ?? "latest").
+                """
+            )
+        case .forkCheckpointStoreMissing:
+            return .internalError(reason: "Hive forking requires a checkpoint store.")
+        case .forkCheckpointQueryUnsupported:
+            return .invalidInput(reason: "Hive checkpoint store does not support fork checkpoint queries.")
+        case let .forkTargetThreadConflict(threadID):
+            return .invalidInput(reason: "Hive fork target thread already exists: \(threadID.rawValue)")
+        case let .forkSchemaGraphMismatch(expectedSchema, expectedGraph, foundSchema, foundGraph):
+            return .internalError(
+                reason: """
+                Hive fork checkpoint version mismatch.
+                expected(schema=\(expectedSchema), graph=\(expectedGraph))
+                found(schema=\(foundSchema), graph=\(foundGraph))
+                """
+            )
+        case let .forkMalformedCheckpoint(field, errorDescription):
+            return .internalError(
+                reason: "Hive fork checkpoint malformed at '\(field)': \(errorDescription)"
             )
 
         case let .unknownNodeID(nodeID):
