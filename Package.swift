@@ -30,6 +30,10 @@ if useLocalDependencies {
     let waxPath = waxCandidates.first(where: { candidate in
         FileManager.default.fileExists(atPath: packageRoot.appendingPathComponent(candidate).path)
     }) ?? "../Wax"
+    let hiveCandidates = ["../Hive", "../rag/Hive"]
+    let hivePath = hiveCandidates.first(where: { candidate in
+        FileManager.default.fileExists(atPath: packageRoot.appendingPathComponent(candidate).path)
+    }) ?? "../Hive"
 
     packageDependencies.append(.package(path: waxPath))
     packageDependencies.append(
@@ -43,6 +47,7 @@ if useLocalDependencies {
         )
     )
     packageDependencies.append(.package(path: "../Membrane"))
+    packageDependencies.append(.package(path: hivePath))
 } else {
     packageDependencies.append(
         .package(
@@ -68,8 +73,9 @@ if useLocalDependencies {
         )
     )
 }
-
-packageDependencies.append(.package(url: "https://github.com/christopherkarani/Hive", from: "0.1.0"))
+if !useLocalDependencies {
+    packageDependencies.append(.package(url: "https://github.com/christopherkarani/Hive", from: "0.1.0"))
+}
 
 var swarmDependencies: [Target.Dependency] = [
     "SwarmMacros",
