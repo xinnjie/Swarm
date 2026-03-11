@@ -1,15 +1,6 @@
 {
-  "originHash" : "c7a199b964331a16a4d30526773f33d386653001af3f841767db89398c5b333b",
+  "originHash" : "c4b4b0c9697cd57cca4b1069f1667a2b2f7bf598cedc24f2edabe893e4affc55",
   "pins" : [
-    {
-      "identity" : "conduit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/christopherkarani/Conduit",
-      "state" : {
-        "revision" : "b7ccafa44c8bb19d0f74aeb45d9dbd05563a55c5",
-        "version" : "0.3.5"
-      }
-    },
     {
       "identity" : "eventsource",
       "kind" : "remoteSourceControl",
@@ -26,24 +17,6 @@
       "state" : {
         "revision" : "2cf6c756e1e5ef6901ebae16576a7e4e4b834622",
         "version" : "6.29.3"
-      }
-    },
-    {
-      "identity" : "hive",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/christopherkarani/Hive",
-      "state" : {
-        "revision" : "f90e42bd1fdf5dce6b669fb900f0d417d70a6bef",
-        "version" : "0.1.6"
-      }
-    },
-    {
-      "identity" : "membrane",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/christopherkarani/Membrane",
-      "state" : {
-        "branch" : "main",
-        "revision" : "98403aae550de15bf407b320b06675a59ac00346"
       }
     },
     {
@@ -161,15 +134,6 @@
       "state" : {
         "revision" : "40d127f472e9073875566f0e9308c0302b89100a",
         "version" : "2.24.0"
-      }
-    },
-    {
-      "identity" : "wax",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/christopherkarani/Wax.git",
-      "state" : {
-        "revision" : "3da2f9815c403963ec741c18336e9554de2b93c5",
-        "version" : "0.1.8"
       }
     },
     {

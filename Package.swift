@@ -6,7 +6,19 @@ import Foundation
 let includeDemo = ProcessInfo.processInfo.environment["SWARM_INCLUDE_DEMO"] == "1"
 
 let packageRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-let useLocalDependencies = ProcessInfo.processInfo.environment["SWARM_USE_LOCAL_DEPS"] == "1"
+let localWaxPath = ["../Wax", "../rag/Wax"].first(where: { candidate in
+    FileManager.default.fileExists(atPath: packageRoot.appendingPathComponent(candidate).path)
+})
+let localHivePath = ["../Hive", "../rag/Hive"].first(where: { candidate in
+    FileManager.default.fileExists(atPath: packageRoot.appendingPathComponent(candidate).path)
+})
+let hasLocalDependencyCheckout =
+    localWaxPath != nil &&
+    localHivePath != nil &&
+    FileManager.default.fileExists(atPath: packageRoot.appendingPathComponent("../Conduit").path) &&
+    FileManager.default.fileExists(atPath: packageRoot.appendingPathComponent("../Membrane").path)
+let useLocalDependencies =
+    ProcessInfo.processInfo.environment["SWARM_USE_LOCAL_DEPS"] == "1" || hasLocalDependencyCheckout
 
 var packageProducts: [Product] = [
     .library(name: "Swarm", targets: ["Swarm"]),
@@ -26,14 +38,8 @@ var packageDependencies: [Package.Dependency] = [
 
 if useLocalDependencies {
     // NOTE: Local development override.
-    let waxCandidates = ["../Wax", "../rag/Wax"]
-    let waxPath = waxCandidates.first(where: { candidate in
-        FileManager.default.fileExists(atPath: packageRoot.appendingPathComponent(candidate).path)
-    }) ?? "../Wax"
-    let hiveCandidates = ["../Hive", "../rag/Hive"]
-    let hivePath = hiveCandidates.first(where: { candidate in
-        FileManager.default.fileExists(atPath: packageRoot.appendingPathComponent(candidate).path)
-    }) ?? "../Hive"
+    let waxPath = localWaxPath ?? "../Wax"
+    let hivePath = localHivePath ?? "../Hive"
 
     packageDependencies.append(.package(path: waxPath))
     packageDependencies.append(
