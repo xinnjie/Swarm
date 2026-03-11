@@ -416,6 +416,26 @@ public struct PromptString: Sendable, ExpressibleByStringLiteral, ExpressibleByS
 @attached(member, names: arbitrary)
 public macro Builder() = #externalMacro(module: "SwarmMacros", type: "BuilderMacro")
 
+// MARK: - @AgentV3 Macro
+
+/// A macro that generates an `AgentV3` factory method for a struct.
+///
+/// Usage:
+/// ```swift
+/// @AgentV3("You are a helpful assistant.")
+/// struct HelperBot {
+///     var tools: [any ToolV3] { [SearchTool()] }
+/// }
+///
+/// // Use:
+/// let agent = HelperBot.makeAgent()
+/// ```
+///
+/// Generates a `static func makeAgent() -> AgentV3` that creates an `AgentV3`
+/// with the given instructions and the struct's `tools` property (if present).
+@attached(member, names: named(makeAgent))
+public macro AgentV3(_ instructions: String) = #externalMacro(module: "SwarmMacros", type: "AgentV3Macro")
+
 // MARK: - PromptString String Interpolation
 
 public extension PromptString {

@@ -1,7 +1,7 @@
 import Testing
 @testable import Swarm
 
-@Suite("SwarmConfig")
+@Suite("SwarmConfig", .serialized)
 struct SwarmConfigTests {
     @Test func configureStoresGlobalProvider() async {
         let mock = MockInferenceProvider(responses: [])
