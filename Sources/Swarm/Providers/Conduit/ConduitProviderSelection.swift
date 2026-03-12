@@ -4,6 +4,7 @@
 // Minimal Conduit-backed provider selection for Swarm.
 
 import Conduit
+import Foundation
 
 /// Convenience selection for Conduit-backed inference providers.
 ///
@@ -59,6 +60,43 @@ public enum ConduitProviderSelection: Sendable, InferenceProvider {
         return .provider(bridge)
     }
 
+    /// Creates a Conduit-backed Ollama provider using a base URL string.
+    ///
+    /// - Parameters:
+    ///   - model: The model name to use (e.g. `"llama3.2"`).
+    ///   - baseURL: The full base URL of the Ollama server (e.g. `"http://localhost:11434"`).
+    ///     Host and port are parsed from this URL; path components are ignored.
+    public static func ollama(
+        model: String,
+        baseURL: String
+    ) -> ConduitProviderSelection {
+        var settings = OllamaSettings.default
+        if let url = URL(string: baseURL), let host = url.host {
+            settings.host = host
+            if let port = url.port {
+                settings.port = port
+            }
+        }
+        return ollama(model: model, settings: settings)
+    }
+
+    /// Creates a Conduit-backed Gemini provider via OpenRouter.
+    ///
+    /// Gemini models are accessed through OpenRouter using the `google/<model>` namespace.
+    /// The `apiKey` should be your OpenRouter API key.
+    ///
+    /// - Parameters:
+    ///   - apiKey: Your OpenRouter API key.
+    ///   - model: The Gemini model identifier, e.g. `"gemini-2.0-flash"`.
+    ///     This is automatically prefixed with `"google/"` when routing through OpenRouter.
+    public static func gemini(
+        apiKey: String,
+        model: String = "gemini-2.0-flash"
+    ) -> ConduitProviderSelection {
+        let routedModel = model.hasPrefix("google/") ? model : "google/\(model)"
+        return openRouter(apiKey: apiKey, model: routedModel)
+    }
+
     /// Exposes the underlying inference provider.
     public func makeProvider() -> any InferenceProvider {
         switch self {
@@ -81,6 +119,51 @@ public enum ConduitProviderSelection: Sendable, InferenceProvider {
         options: InferenceOptions
     ) async throws -> InferenceResponse {
         try await makeProvider().generateWithToolCalls(prompt: prompt, tools: tools, options: options)
+    }
+}
+
+// MARK: - Dot-syntax Entry Points
+
+/// Enables dot-syntax on `any InferenceProvider` parameters, e.g.:
+/// ```swift
+/// let agent = try Agent("...", provider: .anthropic(apiKey: "key"))
+/// ```
+public extension InferenceProvider where Self == ConduitProviderSelection {
+    static func anthropic(apiKey: String, model: String = "claude-sonnet-4-5") -> ConduitProviderSelection {
+        ConduitProviderSelection.anthropic(apiKey: apiKey, model: model)
+    }
+
+    static func openAI(apiKey: String, model: String = "gpt-4o") -> ConduitProviderSelection {
+        ConduitProviderSelection.openAI(apiKey: apiKey, model: model)
+    }
+
+    static func openRouter(
+        apiKey: String,
+        model: String,
+        routing: OpenRouterRouting? = nil
+    ) -> ConduitProviderSelection {
+        ConduitProviderSelection.openRouter(apiKey: apiKey, model: model, routing: routing)
+    }
+
+    static func ollama(
+        model: String,
+        settings: OllamaSettings = .default
+    ) -> ConduitProviderSelection {
+        ConduitProviderSelection.ollama(model: model, settings: settings)
+    }
+
+    static func ollama(
+        model: String,
+        baseURL: String
+    ) -> ConduitProviderSelection {
+        ConduitProviderSelection.ollama(model: model, baseURL: baseURL)
+    }
+
+    static func gemini(
+        apiKey: String,
+        model: String = "gemini-2.0-flash"
+    ) -> ConduitProviderSelection {
+        ConduitProviderSelection.gemini(apiKey: apiKey, model: model)
     }
 }
 
