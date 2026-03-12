@@ -42,23 +42,23 @@ import Foundation
 /// let result = try await agent.run("What's the weather in Tokyo?")
 /// print(result.output)
 /// ```
-public actor Agent: AgentRuntime {
+public struct Agent: AgentRuntime, Sendable {
     // MARK: Public
 
     // MARK: - Agent Protocol Properties
 
-    nonisolated public let tools: [any AnyJSONTool]
-    nonisolated public let instructions: String
-    nonisolated public let configuration: AgentConfiguration
-    nonisolated public let memory: (any Memory)?
-    nonisolated public let inferenceProvider: (any InferenceProvider)?
-    nonisolated public let inputGuardrails: [any InputGuardrail]
-    nonisolated public let outputGuardrails: [any OutputGuardrail]
-    nonisolated public let tracer: (any Tracer)?
-    nonisolated public let guardrailRunnerConfiguration: GuardrailRunnerConfiguration
+    public let tools: [any AnyJSONTool]
+    public let instructions: String
+    public let configuration: AgentConfiguration
+    public let memory: (any Memory)?
+    public let inferenceProvider: (any InferenceProvider)?
+    public let inputGuardrails: [any InputGuardrail]
+    public let outputGuardrails: [any OutputGuardrail]
+    public let tracer: (any Tracer)?
+    public let guardrailRunnerConfiguration: GuardrailRunnerConfiguration
 
     /// Configured handoffs for this agent.
-    nonisolated public var handoffs: [AnyHandoffConfiguration] {
+    public var handoffs: [AnyHandoffConfiguration] {
         _handoffs
     }
 
@@ -293,32 +293,7 @@ public actor Agent: AgentRuntime {
     /// - Returns: The result of the agent's execution.
     /// - Throws: `AgentError` if execution fails, or `GuardrailError` if guardrails trigger.
     public func run(_ input: String, session: (any Session)? = nil, observer: (any AgentObserver)? = nil) async throws -> AgentResult {
-        let runID = UUID()
-        let task = Task { [self] in
-            try await runInternal(input, session: session, observer: observer)
-        }
-        currentTask = task
-        currentRunID = runID
-        defer {
-            if currentRunID == runID {
-                currentTask = nil
-                currentRunID = nil
-            }
-        }
-
-        do {
-            return try await withTaskCancellationHandler(
-                operation: {
-                    try await task.value
-                },
-                onCancel: {
-                    task.cancel()
-                }
-            )
-        } catch is CancellationError {
-            task.cancel()
-            throw AgentError.cancelled
-        }
+        try await runInternal(input, session: session, observer: observer)
     }
 
     /// Streams the agent's execution, yielding events as they occur.
@@ -327,8 +302,9 @@ public actor Agent: AgentRuntime {
     ///   - session: Optional session for conversation history management.
     ///   - observer: Optional run observer for observing agent execution events.
     /// - Returns: An async stream of agent events.
-    nonisolated public func stream(_ input: String, session: (any Session)? = nil, observer: (any AgentObserver)? = nil) -> AsyncThrowingStream<AgentEvent, Error> {
-        StreamHelper.makeTrackedStream(for: self) { agent, continuation in
+    public func stream(_ input: String, session: (any Session)? = nil, observer: (any AgentObserver)? = nil) -> AsyncThrowingStream<AgentEvent, Error> {
+        let agent = self
+        return StreamHelper.makeTrackedStream { continuation in
             // Create event bridge observer
             let streamObserver = EventStreamObserver(continuation: continuation)
 
@@ -347,12 +323,6 @@ public actor Agent: AgentRuntime {
                 continuation.finish(throwing: error)
             }
         }
-    }
-
-    /// Cancels any ongoing execution.
-    public func cancel() async {
-        isCancelled = true
-        currentTask?.cancel()
     }
 
     public func runWithResponse(
@@ -393,9 +363,6 @@ public actor Agent: AgentRuntime {
 
     // MARK: - Internal State
 
-    private var currentTask: Task<AgentResult, any Error>?
-    private var currentRunID: UUID?
-    private var isCancelled: Bool = false
     private let toolRegistry: ToolRegistry
     private static let autoResponseTracker = ResponseTracker()
     private static let responseIDMetadataKey = "response.id"
