@@ -60,3 +60,12 @@ node_modules/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
 package-lock.json
+package.json
+
+# Swift tooling config (contributors: these exist locally, gitignored for clean root)
+.swift-version
+.swiftformat
+.swiftlint.yml
+
+# SPM resolved file (library — consumers resolve their own deps)
+Package.resolved
