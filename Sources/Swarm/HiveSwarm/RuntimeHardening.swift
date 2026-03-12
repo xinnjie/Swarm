@@ -739,7 +739,7 @@ extension GraphRunController {
         }
 
         if let outputProjection = options.outputProjectionOverride {
-            let specsByID = Dictionary(uniqueKeysWithValues: ChatGraph.Schema.channelSpecs.map { ($0.id, $0) })
+            let specsByID = Dictionary(ChatGraph.Schema.channelSpecs.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
             if case let .channels(ids) = outputProjection {
                 for id in ids {
                     guard let spec = specsByID[id] else {

@@ -168,7 +168,10 @@ public extension AgentRuntime {
     ) async throws -> AgentResponse {
         let result = try await run(input, session: session, observer: observer)
 
-        let toolCallsById = Dictionary(uniqueKeysWithValues: result.toolCalls.map { ($0.id, $0) })
+        // Use reduce(into:) instead of uniqueKeysWithValues to avoid crash on duplicate IDs
+        let toolCallsById = result.toolCalls.reduce(into: [UUID: ToolCall]()) { dict, call in
+            dict[call.id] = call
+        }
 
         let toolCallRecords: [ToolCallRecord] = result.toolResults.compactMap { toolResult in
             guard let toolCall = toolCallsById[toolResult.callId] else {
