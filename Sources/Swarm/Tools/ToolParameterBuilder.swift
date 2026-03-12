@@ -290,7 +290,7 @@ public struct ToolArrayBuilder {
 
     /// Converts a typed tool to a dynamic tool array.
     public static func buildExpression<T: Tool>(_ expression: T) -> [any AnyJSONTool] {
-        [AnyTool(expression)]
+        [AnyJSONToolAdapter(expression)]
     }
 
     /// Passes through an array of tools.

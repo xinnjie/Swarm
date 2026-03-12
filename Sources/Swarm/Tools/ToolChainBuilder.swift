@@ -78,7 +78,7 @@ public struct ToolChainBuilder {
 
     /// Converts a typed tool to a chain step.
     public static func buildExpression<T: Tool>(_ tool: T) -> ToolChainStep {
-        ToolStep(AnyTool(tool))
+        ToolStep(AnyJSONToolAdapter(tool))
     }
 
     /// Converts a step to a chain step array.
