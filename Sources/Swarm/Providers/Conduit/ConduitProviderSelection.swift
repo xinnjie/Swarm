@@ -30,34 +30,62 @@ public enum ConduitProviderSelection: Sendable, InferenceProvider {
     }
 
     /// Creates a Conduit-backed OpenRouter provider.
+    public static func openRouter(
+        apiKey: String,
+        model: String
+    ) -> ConduitProviderSelection {
+        openRouter(apiKey: apiKey, model: model, routing: nil)
+    }
+
+    /// Creates a Conduit-backed OpenRouter provider with routing configuration.
     ///
-    /// - Note: OpenRouter expects full `provider/model` strings.
+    /// - Parameters:
+    ///   - apiKey: Your OpenRouter API key.
+    ///   - model: The model identifier (e.g. `"anthropic/claude-3.5-sonnet"`).
+    ///   - configure: Closure to customize OpenRouter routing preferences.
+    ///
+    /// ```swift
+    /// let provider: some InferenceProvider = .openRouter(apiKey: key, model: "...") { routing in
+    ///     routing.providers = [.anthropic]
+    /// }
+    /// ```
     public static func openRouter(
         apiKey: String,
         model: String,
-        routing: OpenRouterRouting? = nil
+        configure: (inout OpenRouterRouting) -> Void
     ) -> ConduitProviderSelection {
-        var configuration = OpenAIConfiguration.openRouter(apiKey: apiKey)
-        if let routing {
-            configuration = configuration.routing(routing.toConduit())
-        }
-        let provider = OpenAIProvider(configuration: configuration)
-        let modelID = OpenAIModelID.openRouter(model)
-        let bridge = ConduitInferenceProvider(provider: provider, model: modelID)
-        return .provider(bridge)
+        var routing = OpenRouterRouting()
+        configure(&routing)
+        return openRouter(apiKey: apiKey, model: model, routing: routing)
     }
 
     /// Creates a Conduit-backed Ollama provider.
+    ///
+    /// - Parameters:
+    ///   - model: The Ollama model name (e.g. `"llama3.2"`, `"mistral"`).
+    public static func ollama(model: String) -> ConduitProviderSelection {
+        ollama(model: model, settings: .default)
+    }
+
+    /// Creates a Conduit-backed Ollama provider with closure-based configuration.
+    ///
+    /// - Parameters:
+    ///   - model: The Ollama model name (e.g. `"llama3.2"`, `"mistral"`).
+    ///   - configure: Closure to customize Ollama connection settings.
+    ///
+    /// ```swift
+    /// let provider: some InferenceProvider = .ollama(model: "mistral") { settings in
+    ///     settings.host = "127.0.0.1"
+    ///     settings.port = 11435
+    /// }
+    /// ```
     public static func ollama(
         model: String,
-        settings: OllamaSettings = .default
+        configure: (inout OllamaSettings) -> Void
     ) -> ConduitProviderSelection {
-        let configuration = OpenAIConfiguration.ollama(host: settings.host, port: settings.port)
-            .ollama(settings.toConduit())
-        let provider = OpenAIProvider(configuration: configuration)
-        let modelID = OpenAIModelID.ollama(model)
-        let bridge = ConduitInferenceProvider(provider: provider, model: modelID)
-        return .provider(bridge)
+        var settings = OllamaSettings.default
+        configure(&settings)
+        return ollama(model: model, settings: settings)
     }
 
     /// Creates a Conduit-backed Ollama provider using a base URL string.
@@ -120,6 +148,35 @@ public enum ConduitProviderSelection: Sendable, InferenceProvider {
     ) async throws -> InferenceResponse {
         try await makeProvider().generateWithToolCalls(prompt: prompt, tools: tools, options: options)
     }
+
+    // MARK: - Internal Helpers
+
+    static func openRouter(
+        apiKey: String,
+        model: String,
+        routing: OpenRouterRouting?
+    ) -> ConduitProviderSelection {
+        var configuration = OpenAIConfiguration.openRouter(apiKey: apiKey)
+        if let routing {
+            configuration = configuration.routing(routing.toConduit())
+        }
+        let provider = OpenAIProvider(configuration: configuration)
+        let modelID = OpenAIModelID.openRouter(model)
+        let bridge = ConduitInferenceProvider(provider: provider, model: modelID)
+        return .provider(bridge)
+    }
+
+    static func ollama(
+        model: String,
+        settings: OllamaSettings
+    ) -> ConduitProviderSelection {
+        let configuration = OpenAIConfiguration.ollama(host: settings.host, port: settings.port)
+            .ollama(settings.toConduit())
+        let provider = OpenAIProvider(configuration: configuration)
+        let modelID = OpenAIModelID.ollama(model)
+        let bridge = ConduitInferenceProvider(provider: provider, model: modelID)
+        return .provider(bridge)
+    }
 }
 
 // MARK: - Dot-syntax Entry Points
@@ -139,17 +196,28 @@ public extension InferenceProvider where Self == ConduitProviderSelection {
 
     static func openRouter(
         apiKey: String,
-        model: String,
-        routing: OpenRouterRouting? = nil
+        model: String
     ) -> ConduitProviderSelection {
-        ConduitProviderSelection.openRouter(apiKey: apiKey, model: model, routing: routing)
+        ConduitProviderSelection.openRouter(apiKey: apiKey, model: model)
+    }
+
+    static func openRouter(
+        apiKey: String,
+        model: String,
+        configure: (inout OpenRouterRouting) -> Void
+    ) -> ConduitProviderSelection {
+        ConduitProviderSelection.openRouter(apiKey: apiKey, model: model, configure: configure)
+    }
+
+    static func ollama(model: String) -> ConduitProviderSelection {
+        ConduitProviderSelection.ollama(model: model)
     }
 
     static func ollama(
         model: String,
-        settings: OllamaSettings = .default
+        configure: (inout OllamaSettings) -> Void
     ) -> ConduitProviderSelection {
-        ConduitProviderSelection.ollama(model: model, settings: settings)
+        ConduitProviderSelection.ollama(model: model, configure: configure)
     }
 
     static func ollama(

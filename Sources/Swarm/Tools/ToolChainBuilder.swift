@@ -34,6 +34,7 @@ import Foundation
 ///
 /// let result = try await pipeline.execute(.string("Swift concurrency"))
 /// ```
+@available(*, deprecated, message: "ToolChain DSL is deprecated. Use direct async/await tool composition instead.")
 @resultBuilder
 public struct ToolChainBuilder {
     /// Builds a chain from multiple steps.
@@ -111,6 +112,7 @@ public struct ToolChainBuilder {
 /// let step: ToolChainStep = SearchTool()
 /// let result = try await step.execute(input: .string("query"))
 /// ```
+@available(*, deprecated, message: "ToolChain DSL is deprecated. Use direct async/await tool composition instead.")
 public protocol ToolChainStep: Sendable {
     /// Executes this step with the given input.
     ///
@@ -155,6 +157,7 @@ public extension AnyJSONTool {
 ///     .timeout(.seconds(30))
 ///     .fallback(to: CachedSearchTool())
 /// ```
+@available(*, deprecated, message: "ToolChain DSL is deprecated. Use direct async/await tool composition instead.")
 public struct ToolStep: ToolChainStep, Sendable {
     // MARK: Public
 
@@ -343,6 +346,7 @@ public struct ToolStep: ToolChainStep, Sendable {
 ///     return .array(items.prefix(10).map { $0 })
 /// }
 /// ```
+@available(*, deprecated, message: "ToolChain DSL is deprecated. Use direct async/await tool composition instead.")
 public struct ToolTransform: ToolChainStep, Sendable {
     // MARK: Public
 
@@ -383,6 +387,7 @@ public struct ToolTransform: ToolChainStep, Sendable {
 ///     result.arrayValue?.isEmpty == false
 /// }, defaultValue: .array([]))
 /// ```
+@available(*, deprecated, message: "ToolChain DSL is deprecated. Use direct async/await tool composition instead.")
 public struct ToolFilter: ToolChainStep, Sendable {
     // MARK: Public
 
@@ -433,6 +438,7 @@ public struct ToolFilter: ToolChainStep, Sendable {
 ///     else: StandardTool()
 /// )
 /// ```
+@available(*, deprecated, message: "ToolChain DSL is deprecated. Use direct async/await tool composition instead.")
 public struct ToolConditional: ToolChainStep, Sendable {
     // MARK: Public
 
@@ -498,6 +504,7 @@ public struct ToolConditional: ToolChainStep, Sendable {
 ///
 /// let result = try await pipeline.execute(.string("Swift patterns"))
 /// ```
+@available(*, deprecated, message: "ToolChain DSL is deprecated. Use direct async/await tool composition instead.")
 public struct ToolChain: Sendable {
     // MARK: Public
 
@@ -560,6 +567,7 @@ public struct ToolChain: Sendable {
 // MARK: - ToolChainError
 
 /// Errors that can occur during tool chain execution.
+@available(*, deprecated, message: "ToolChain DSL is deprecated. Use direct async/await tool composition instead.")
 public enum ToolChainError: Error, Sendable, LocalizedError, CustomStringConvertible {
     // MARK: Public
 
