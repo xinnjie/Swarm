@@ -18,6 +18,10 @@ let result = try await Workflow()
     .run("Summarize the latest WWDC session on Swift concurrency.")
 ```
 
+<div align="center">
+  <img alt="Swarm API Flow" src="docs/public/api-flow.gif" width="600" />
+</div>
+
 Two agents. One pipeline. Compiled to a DAG. Crash-resumable. Zero data races.
 
 ## Install
