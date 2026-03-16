@@ -267,10 +267,10 @@ public struct Agent: AgentRuntime, Sendable {
         outputGuardrails: [any OutputGuardrail] = [],
         guardrailRunnerConfiguration: GuardrailRunnerConfiguration = .default,
         handoffs: [AnyHandoffConfiguration] = [],
-        @ToolBuilder tools: () -> [any AnyJSONTool] = { [] }
+        @ToolBuilder tools: () -> ToolCollection = { .empty }
     ) throws {
         try self.init(
-            tools: tools(),
+            tools: tools().storage,
             instructions: instructions,
             configuration: configuration,
             memory: memory,
