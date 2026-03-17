@@ -114,13 +114,11 @@ struct GraphAgent: AgentRuntime, Sendable {
         await observer?.onAgentStart(context: nil, agent: self, input: input)
 
         do {
-            let request = RunStartRequest(
+            let handle = try await runtime.runControl.start(
                 threadID: threadID,
                 input: input,
                 options: runOptions
             )
-
-            let handle = try await runtime.runControl.start(request)
             await cancellation.track(handle)
 
             let outcome = try await handle.outcome.value
@@ -187,13 +185,11 @@ struct GraphAgent: AgentRuntime, Sendable {
             await observer?.onAgentStart(context: nil, agent: self, input: input)
 
             do {
-                let request = RunStartRequest(
+                let handle = try await runtime.runControl.start(
                     threadID: threadID,
                     input: input,
                     options: runOptions
                 )
-
-                let handle = try await runtime.runControl.start(request)
                 await cancellation.track(handle)
 
                 // Fork a task to consume Hive events and yield mapped AgentEvents.
