@@ -205,3 +205,20 @@ public extension OutputGuard {
         OutputGuard(name, validate)
     }
 }
+
+// MARK: - V3 Protocol Factory Extensions
+
+extension OutputGuardrail where Self == OutputGuard {
+    /// Creates a max-length output guardrail.
+    public static func maxLength(_ maxLength: Int, name: String = "MaxOutputLengthGuardrail") -> OutputGuard {
+        OutputGuard.maxLength(maxLength, name: name)
+    }
+
+    /// Creates a custom output guardrail.
+    public static func custom(
+        _ name: String,
+        _ validate: @escaping @Sendable (String) async throws -> GuardrailResult
+    ) -> OutputGuard {
+        OutputGuard.custom(name, validate)
+    }
+}

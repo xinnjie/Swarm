@@ -167,3 +167,25 @@ public extension InputGuard {
         InputGuard(name, validate)
     }
 }
+
+// MARK: - V3 Protocol Factory Extensions
+
+extension InputGuardrail where Self == InputGuard {
+    /// Creates a max-length input guardrail.
+    public static func maxLength(_ maxLength: Int, name: String = "MaxLengthGuardrail") -> InputGuard {
+        InputGuard.maxLength(maxLength, name: name)
+    }
+
+    /// Creates a not-empty input guardrail.
+    public static func notEmpty(name: String = "NotEmptyGuardrail") -> InputGuard {
+        InputGuard.notEmpty(name: name)
+    }
+
+    /// Creates a custom input guardrail.
+    public static func custom(
+        _ name: String,
+        _ validate: @escaping @Sendable (String) async throws -> GuardrailResult
+    ) -> InputGuard {
+        InputGuard.custom(name, validate)
+    }
+}
