@@ -47,15 +47,15 @@ public struct Agent: AgentRuntime, Sendable {
 
     // MARK: - Agent Protocol Properties
 
-    public var tools: [any AnyJSONTool]
-    public var instructions: String
-    public var configuration: AgentConfiguration
-    public var memory: (any Memory)?
-    public var inferenceProvider: (any InferenceProvider)?
-    public var inputGuardrails: [any InputGuardrail]
-    public var outputGuardrails: [any OutputGuardrail]
-    public var tracer: (any Tracer)?
-    public var guardrailRunnerConfiguration: GuardrailRunnerConfiguration
+    public private(set) var tools: [any AnyJSONTool]
+    public private(set) var instructions: String
+    public private(set) var configuration: AgentConfiguration
+    public private(set) var memory: (any Memory)?
+    public private(set) var inferenceProvider: (any InferenceProvider)?
+    public private(set) var inputGuardrails: [any InputGuardrail]
+    public private(set) var outputGuardrails: [any OutputGuardrail]
+    public private(set) var tracer: (any Tracer)?
+    public private(set) var guardrailRunnerConfiguration: GuardrailRunnerConfiguration
 
     /// Configured handoffs for this agent.
     public var handoffs: [AnyHandoffConfiguration] {
@@ -1710,7 +1710,7 @@ public extension Agent {
     ///
     /// ```swift
     /// let agent = try Agent("Be helpful.")
-    ///     .memory(.conversation(maxMessages: 50))
+    ///     .withMemory(.conversation(maxMessages: 50))
     /// ```
     @discardableResult
     public func withMemory(_ memory: some Memory) -> Agent {
@@ -1794,7 +1794,7 @@ public extension Agent {
     ///   - observer: Optional observer for lifecycle callbacks. Default: nil
     /// - Returns: The result of the agent's execution.
     /// - Throws: `AgentError` if execution fails, or `GuardrailError` if guardrails trigger.
-    func callAsFunction(
+    public func callAsFunction(
         _ input: String,
         session: (any Session)? = nil,
         observer: (any AgentObserver)? = nil
