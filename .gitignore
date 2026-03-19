@@ -33,6 +33,7 @@ scripts/
 # Internal documentation (plans, prompts, work packages, validation)
 docs/plans/
 docs/prompts/
+docs/superpowers/plans/
 docs/work-packages/
 docs/validation/
 docs/migration-plan_*.md
@@ -55,6 +56,7 @@ website/
 docs/reference/api-surface-catalog.md
 docs/reference/api-improvement-report.md
 docs/reference/api-quality-assessment.md
+docs/reference/readme-audit-report.md
 
 # VitePress / Node
 node_modules/
