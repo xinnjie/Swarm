@@ -28,7 +28,7 @@ Two agents, one pipeline, compiled to a DAG with crash recovery and Swift concur
 ## Install
 
 ```swift
-.package(url: "https://github.com/christopherkarani/Swarm.git", from: "0.4.0")
+.package(url: "https://github.com/christopherkarani/Swarm.git", from: "0.4.6")
 ```
 
 ## Quick Start
