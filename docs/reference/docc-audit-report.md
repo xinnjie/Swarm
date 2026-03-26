@@ -275,7 +275,7 @@
 | Type/Method | Has DocC? | Quality | Notes |
 |-------------|-----------|---------|-------|
 | `ContextMode` enum | ✅ Yes | ⭐⭐⭐⭐ | Both cases documented |
-| `SwarmHiveRunOptionsOverride` struct | ❌ No | N/A | Internal, undocumented |
+| `SwarmGraphRunOptionsOverride` struct | ❌ No | N/A | Internal, undocumented |
 | `InferencePolicy` struct | ✅ Yes | ⭐⭐⭐⭐ | Good overview |
 | `LatencyTier` enum | ✅ Yes | ⭐⭐⭐⭐ | Cases documented |
 | `NetworkState` enum | ✅ Yes | ⭐⭐⭐ | Cases documented |
@@ -295,7 +295,7 @@
 | `modelSettings` property | ✅ Yes | ⭐⭐⭐⭐⭐ | Excellent with example |
 | `contextProfile` property | ✅ Yes | ⭐⭐⭐ | Clear |
 | `contextMode` property | ⚠️ Partial | ⭐⭐ | Missing description of behavior |
-| `hiveRunOptionsOverride` property | ❌ No | N/A | Internal |
+| `graphRunOptionsOverride` property | ❌ No | N/A | Internal |
 | `inferencePolicy` property | ✅ Yes | ⭐⭐⭐⭐ | Good description |
 | `enableStreaming` property | ✅ Yes | ⭐⭐⭐ | Clear |
 | `includeToolCallDetails` property | ✅ Yes | ⭐⭐⭐ | Clear |

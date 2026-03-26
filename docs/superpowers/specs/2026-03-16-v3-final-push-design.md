@@ -235,7 +235,7 @@ All files currently exposing `AnyJSONTool` in public signatures:
 - `ObservedAgent.swift`, `EnvironmentAgent.swift` — references
 - `MCPClient.swift`, `MCPToolBridge.swift` — MCP bridging
 - `ToolGuardrails.swift` — guardrail references
-- `HiveSwarm/GraphAgent.swift`, `HiveSwarm/ToolRegistryAdapter.swift` — HiveSwarm
+- `Internal/GraphRuntime/runtime-agent adapter`, `Internal/GraphRuntime/ToolRegistryAdapter.swift` — internal graph runtime
 - `MacroDeclarations.swift` — macro declaration (conformance target changes)
 - `SwarmMacros/ToolMacro.swift` — generates `AnyJSONTool` conformance → internal bridge
 - `SwarmMacros/Plugin.swift` — add `InlineToolMacro.self` to `providingMacros`
@@ -666,7 +666,7 @@ extension RetryPolicy where Self == LinearBackoff {
 | Workflow | `Workflow`, `WorkflowError` | 2 |
 | MCP | `MCPClient`, `MCPServer`, `MCPError`, `MCPCapabilities` | 4 |
 | Config | `ModelSettings`, `ContextProfile`, `GuardrailRunnerConfiguration` | 3 |
-| HiveSwarm | `HiveSwarm`, `ChatGraph`, `GraphNode` | 3 |
+| GraphRuntime | `ChatGraph`, `GraphNode` | 2 |
 | Session/Context | `Session`, `AgentContext` | 2 |
 | Errors/Enums | Misc supporting enums | ~8 |
 | **Total** | | **~70** |

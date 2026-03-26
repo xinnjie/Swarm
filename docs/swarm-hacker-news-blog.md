@@ -117,7 +117,7 @@ public protocol AgentRuntime: Sendable {
 }
 ```
 
-`Agent` is the main implementation. `@AgentActor` generates lightweight agents from simple functions. `GraphAgent` bridges Hive workflows. `ObservedAgent` wraps any agent with observability — without subclassing any of them.
+`Agent` is the main implementation. `@AgentActor` generates lightweight agents from simple functions. Internal graph-runtime adapters power durable workflows. `ObservedAgent` wraps any agent with observability — without subclassing any of them.
 
 ```swift
 // Wrap any agent with logging

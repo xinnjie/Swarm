@@ -24,18 +24,18 @@ actor ResponseCache {
 
 ## Workflows Survive Crashes
 
-Advanced workflows can use [Hive](https://github.com/christopherkarani/Hive) checkpointing. You can persist state, then resume from a checkpoint ID without restarting from the beginning.
+Advanced workflows can use Swarm's durable checkpointing. You can persist state, then resume from a checkpoint ID without restarting from the beginning.
 
 ```swift
 let result = try await Workflow()
     .step(fetchAgent)
     .step(analyzeAgent)
-    .advanced
+    .durable
     .checkpoint(id: "weekly-report", policy: .everyStep)
-    .advanced
-    .checkpointStore(.fileSystem(directory: checkpointsURL))
-    .advanced
-    .run("Create this week report")
+    .durable
+    .checkpointing(.fileSystem(directory: checkpointsURL))
+    .durable
+    .execute("Create this week report")
 ```
 
 ## Workflow Is Fluent

@@ -76,7 +76,7 @@ actor MacroEchoAgent {
 |------|---------|
 | `Agent` | Primary struct with full tool-calling loop |
 | `@AgentActor` | Macro-generated lightweight actors |
-| `GraphAgent` | Hive integration for deterministic execution |
+| Durable runtime adapter | Internal graph-runtime implementation for deterministic execution |
 | `ObservedAgent<Wrapped>` | Wrapper adding observability |
 | `EnvironmentAgent` | Wrapper applying task-local environment |
 
@@ -552,7 +552,7 @@ let result = try await Workflow()
     .run("Improve this text")
 ```
 
-### Durable Execution with HiveCore
+### Durable Execution
 
 ```swift
 let result = try await Workflow()

@@ -87,9 +87,8 @@
    - **Canonical spec shows:** `.checkpointing(_:)` method
    - **Impact:** Users cannot determine correct API
 
-3. **[High] Missing Hive Reference** (Line 27)
-   - References `[Hive]` link but no URL provided
-   - Should link to `hive-swarm-nonfork-hardening.md` or external repo
+3. **[Resolved] Durable Runtime Reference** (Line 27)
+   - The older external-runtime reference was removed in favor of Swarm-owned durable-runtime wording
 
 4. **[Medium] API Version Ambiguity**
    - No indication if this is V2 or V3 API
@@ -207,7 +206,7 @@
 
 | Document | Link | Issue |
 |----------|------|-------|
-| why-swarm.md | `[Hive]` | No URL, should link to GitHub repo or docs |
+| why-swarm.md | Durable runtime wording | Resolved by switching to Swarm-owned terminology |
 | getting-started.md | `/agents`, `/tools`, `/memory` | Relative paths may not resolve |
 | overview.md | `/agents`, `/tools`, etc. | Links to non-existent files |
 
@@ -262,8 +261,8 @@
    **Effort:** Low  
    **Impact:** Medium
 
-6. **[Medium] Add Hive Link**
-   - Add proper URL to Hive GitHub repo in `why-swarm.md`
+6. **[Resolved] Remove External Runtime Link**
+   - `why-swarm.md` now uses Swarm durable-runtime wording directly
    **Owner:** Documentation  
    **Effort:** Trivial  
    **Impact:** Low

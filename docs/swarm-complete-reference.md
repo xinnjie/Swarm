@@ -2,10 +2,11 @@
 
 > [!WARNING]
 > This reference contains legacy sections from the removed DSL/orchestration APIs.
-> Use `Workflow` as the canonical composition API. Advanced checkpoint/resume APIs are under `workflow.advanced`.
+> It is archival, not the source of truth for the current public API surface in 0.5.0.
+> Use `Workflow` as the canonical composition API. Durable checkpoint/resume APIs are under `workflow.durable`.
 > Prefer `README.md` + `docs/guide/getting-started.md` + `docs/reference/overview.md` for current API usage.
 
-> **Version**: 1.0 · **Swift**: 6.2+ · **Platforms**: macOS 26+, iOS 26+, Linux (Ubuntu 22.04+)
+> **Version**: 0.5.0 · **Swift**: 6.2+ · **Platforms**: macOS 26+, iOS 26+, Linux (Ubuntu 22.04+)
 >
 > A Swift-native multi-agent workflow framework — "LangChain for Apple platforms."
 
@@ -27,7 +28,7 @@
 12. [MCP Integration](#12-mcp-integration)
 13. [Providers](#13-providers)
 14. [Macros](#14-macros)
-15. [Hive Runtime](#15-hive-runtime)
+15. [Durable Runtime](#15-durable-runtime)
 
 ---
 
@@ -71,9 +72,9 @@ Swarm is a Swift 6.2 framework for building multi-agent AI applications on Apple
 │  LLM enum · MultiProvider · ConduitInferenceProvider     │
 │  Foundation Models · OpenRouter · Ollama                  │
 ├─────────────────────────────────────────────────────────┤
-│    Hive Runtime (DAG compilation, checkpointing)         │
+│  Durable Graph Runtime (checkpointing, resume)           │
 ├─────────────────────────────────────────────────────────┤
-│         External: Conduit · Wax · HiveCore · MCP SDK     │
+│            External: Conduit · Wax · MCP SDK             │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -81,12 +82,11 @@ Swarm is a Swift 6.2 framework for building multi-agent AI applications on Apple
 
 | Target | Type | Purpose |
 |--------|------|---------|
-| `Swarm` | Library | Core framework — agents, tools, memory, orchestration, Hive integration |
+| `Swarm` | Library | Core framework — agents, tools, memory, orchestration, durable execution |
 | `SwarmMCP` | Library | MCP server bridge — exposes Swarm tools to MCP clients |
 | `SwarmMacros` | Macro (compiler plugin) | `@Tool`, `@AgentActor`, `@Prompt`, `@Traceable` macros |
 | `SwarmTests` | Test | Tests for Swarm + SwarmMCP |
 | `SwarmMacrosTests` | Test | Macro expansion tests |
-| `HiveSwarmTests` | Test | Hive integration tests |
 
 ### External Dependencies
 
@@ -94,7 +94,6 @@ Swarm is a Swift 6.2 framework for building multi-agent AI applications on Apple
 |---------|---------|
 | **Conduit** | Unified inference provider abstraction (Anthropic, OpenAI, Ollama, Gemini, OpenRouter) |
 | **Wax** | Embedding provider + vector operations for `VectorMemory` |
-| **HiveCore** | Compiled DAG execution engine, checkpointing, interrupt/resume |
 | **swift-syntax** | Powers `SwarmMacros` compiler plugin |
 | **swift-log** | Cross-platform structured logging |
 | **swift-sdk** (MCP) | Model Context Protocol Swift SDK |
@@ -998,7 +997,7 @@ extension AgentLoopDefinition {
 
 ### Overview
 
-Swarm provides 11 orchestration step types that compose into complex workflows. All conform to `OrchestrationStep` and execute through the Hive runtime for checkpointing and interrupt/resume support.
+Swarm provides 11 orchestration step types that compose into complex workflows. All conform to `OrchestrationStep` and execute through Swarm's durable graph runtime for checkpointing and interrupt/resume support.
 
 ### Step Type 1: `Sequential`
 
@@ -3111,218 +3110,28 @@ struct SwarmMacrosPlugin: CompilerPlugin {
 
 ---
 
-## 15. Hive Runtime
+## 15. Durable Runtime
 
 ### Overview
 
-Every `Orchestration { ... }` execution goes through the Hive runtime. `OrchestrationHiveEngine.makeGraph()` compiles `[OrchestrationStep]` into a HiveCore DAG. Even single-step orchestrations get Hive's checkpointing and interrupt/resume infrastructure.
-
-The HiveSwarm bridge code lives in `Sources/Swarm/HiveSwarm/`.
-
-### `HiveBackedAgent`
-
-Wraps a Hive runtime as an `AgentRuntime`:
+Durable workflow execution in Swarm is exposed through `Workflow.durable`. Checkpointing, file-system persistence, and resume are public Swarm APIs; the underlying graph-runtime implementation is internal.
 
 ```swift
-public struct HiveBackedAgent: AgentRuntime, Sendable {
-    nonisolated public let tools: [any AnyJSONTool]
-    nonisolated public let instructions: String
-    nonisolated public let configuration: AgentConfiguration
+let workflow = Workflow()
+    .step(fetchAgent)
+    .step(analyzeAgent)
+    .durable
+    .checkpoint(id: "weekly-report", policy: .everyStep)
+    .durable
+    .checkpointing(.fileSystem(directory: checkpointsURL))
 
-    public init(
-        runtime: HiveAgentsRuntime,
-        name: String,
-        instructions: String = "",
-        threadID: HiveThreadID = HiveThreadID(UUID().uuidString),
-        runOptions: HiveRunOptions = HiveRunOptions(maxSteps: 20, checkpointPolicy: .disabled),
-        configuration: AgentConfiguration? = nil
-    )
-
-    // Execution
-    public func run(_ input: String, session: (any Session)?, hooks: (any RunHooks)?) async throws -> AgentResult
-    public func stream(_ input: String, session: (any Session)?, hooks: (any RunHooks)?) -> AsyncThrowingStream<AgentEvent, Error>
-    public func cancel() async
-}
+let resumed = try await workflow.durable.execute(
+    "Create this week report",
+    resumeFrom: "weekly-report"
+)
 ```
 
-**Event mapping** (HiveEvent → AgentEvent):
-
-| HiveEvent | AgentEvent |
-|-----------|------------|
-| `.modelInvocationStarted` | `.llmStarted` |
-| `.modelToken` | `.outputToken` |
-| `.modelInvocationFinished` | `.llmCompleted` |
-| `.toolInvocationStarted` | `.toolCallStarted` |
-| `.toolInvocationFinished` | `.toolCallCompleted` or `.toolCallFailed` |
-| `.stepStarted` | `.iterationStarted` |
-| `.stepFinished` | `.iterationCompleted` |
-
-### `HiveAgentsRuntime`
-
-```swift
-public struct HiveAgentsRuntime: Sendable {
-    public let runControl: HiveAgentsRunController
-}
-
-public struct HiveAgentsRunController: Sendable {
-    public let runtime: HiveRuntime<HiveAgents.Schema>
-
-    public func start(_ request: HiveAgentsRunStartRequest) async throws -> HiveRunHandle<HiveAgents.Schema>
-    public func resume(_ request: HiveAgentsRunResumeRequest) async throws -> HiveRunHandle<HiveAgents.Schema>
-}
-```
-
-### `HiveAgentsRunStartRequest` / `HiveAgentsRunResumeRequest`
-
-```swift
-public struct HiveAgentsRunStartRequest: Sendable {
-    public let threadID: HiveThreadID
-    public let input: String
-    public let tools: [any AnyJSONTool]
-    public let systemPrompt: String?
-    public let runOptions: HiveRunOptions
-}
-
-public struct HiveAgentsRunResumeRequest: Sendable {
-    public let threadID: HiveThreadID
-    public let resumeToken: ResumeToken
-    public let additionalInput: String?
-}
-```
-
-### `ResumeToken`
-
-```swift
-public struct ResumeToken: ~Copyable, Sendable {
-    // Move-only type — prevents accidental double-resume
-    // Obtained from workflow interrupts
-}
-```
-
-### Hive Graph Structure
-
-The Hive tool-using chat agent graph:
-
-```
-preModel (message compaction, hook transform)
-   ↓
-model (LLM invocation with tool definitions)
-   ↓
-[router] pending tools?
-   ├─YES→ tools (tool approval check)
-   │       ↓
-   │    toolExecute (invoke tools, transform results)
-   │       ↓
-   │    [loop back to model]
-   └─NO→ [end]
-```
-
-### `SwarmToolRegistry` — Hive Tool Bridge
-
-```swift
-public struct SwarmToolRegistry: HiveToolRegistry, Sendable {
-    public init(tools: [any AnyJSONTool]) throws
-    public static func fromRegistry(_ registry: ToolRegistry) async throws -> Self
-
-    public func listTools() -> [HiveToolDefinition]
-    public func invoke(_ call: HiveToolCall) async throws -> HiveToolResult
-}
-```
-
-Converts Swarm `ToolSchema` → Hive `HiveToolDefinition` with JSON schema mapping:
-
-| Swarm Type | JSON Schema |
-|-----------|-------------|
-| `.string` | `{"type": "string"}` |
-| `.int` | `{"type": "integer"}` |
-| `.double` | `{"type": "number"}` |
-| `.bool` | `{"type": "boolean"}` |
-| `.array(elem)` | `{"type": "array", "items": ...}` |
-| `.object(props)` | `{"type": "object", "properties": ...}` |
-| `.oneOf(opts)` | `{"type": "string", "enum": [...]}` |
-| `.any` | `{"anyOf": [...]}` |
-
-### `RetryPolicyBridge`
-
-Converts Swarm retry policies to Hive retry policies (stripping jitter for determinism):
-
-```swift
-public enum RetryPolicyBridge {
-    public static func toHive(_ policy: RetryPolicy) -> HiveRetryPolicy
-}
-```
-
-| Swarm Strategy | Hive Strategy |
-|---------------|---------------|
-| `.exponential(base, mult, max)` | `.exponentialBackoff(initial, factor, max)` |
-| `.exponentialWithJitter` | Strip jitter → `.exponentialBackoff` |
-| `.decorrelatedJitter` | Approximate with factor=2.0 |
-| `.fixed(delay)` | `.exponentialBackoff(initial, factor: 1.0)` |
-| `.linear` | Approximate with factor=1.5 |
-| `.immediate` | `.exponentialBackoff(initial: 0, factor: 1.0)` |
-| `.custom` | Fallback defaults (1s, 2x, 60s max) |
-
-### `HiveAgents` — Schema & Context
-
-```swift
-public enum HiveAgents {
-    // Schema channels
-    public static let messagesKey: HiveChannelKey<Schema, [HiveChatMessage]>
-    public static let pendingToolCallsKey: HiveChannelKey<Schema, [HiveToolCall]>
-    public static let finalAnswerKey: HiveChannelKey<Schema, String?>
-    public static let llmInputMessagesKey: HiveChannelKey<Schema, [HiveChatMessage]?>
-}
-
-public struct HiveAgentsContext: Sendable {
-    public let modelName: String
-    public let toolApprovalPolicy: HiveAgentsToolApprovalPolicy
-    public let compactionPolicy: HiveCompactionPolicy?
-    public let tokenizer: (any HiveTokenizer)?
-    public let retryPolicy: HiveRetryPolicy?
-}
-
-public enum HiveAgentsToolApprovalPolicy: Sendable, Equatable {
-    case never               // Auto-approve all
-    case always              // Require approval for all
-    case allowList(Set<String>)  // Only these tools auto-approved
-}
-```
-
-### `HiveCodableJSONCodec`
-
-Deterministic JSON serialization for checkpoint hashing:
-
-```swift
-public struct HiveCodableJSONCodec<Value: Codable & Sendable>: HiveCodec, Sendable {
-    public init(id: String? = nil)
-    public func encode(_ value: Value) throws -> Data   // sortedKeys, withoutEscapingSlashes
-    public func decode(_ data: Data) throws -> Value
-}
-```
-
-### Hive Extension Hooks
-
-```swift
-// Transform messages before model invocation
-public protocol HiveAgentsPreModelHook: Sendable {
-    func transform(messages: [HiveChatMessage], systemPrompt: String?) async -> ([HiveChatMessage], String?)
-}
-
-// Custom message ID generation
-public protocol HiveAgentsMessageIDFactory: Sendable {
-    func makeID() -> String
-}
-
-// Transform tool results before adding to history
-public protocol HiveAgentsToolResultTransformer: Sendable {
-    func transform(toolName: String, result: String) async -> String
-}
-
-// No-op defaults
-public struct HiveAgentsNoopPreModelHook: HiveAgentsPreModelHook { ... }
-public struct HiveAgentsDefaultMessageIDFactory: HiveAgentsMessageIDFactory { ... }
-public struct HiveAgentsNoopToolResultTransformer: HiveAgentsToolResultTransformer { ... }
-```
+The internal bridge code lives under `Sources/Swarm/Internal/GraphRuntime/` and is not part of the supported public API surface.
 
 ### Workflow Execution & Interrupts
 
@@ -3387,15 +3196,15 @@ public struct AutoApproveHandler: HumanApprovalHandler { ... }
 
 ### Structs (170+)
 
-`AgentConfiguration`, `AgentDescription`, `AgentEnvironment`, `AgentResponse`, `AgentResult`, `AgentStep`, `AgentTool`, `AnyAgent`, `AnyHandoffConfiguration`, `AnyJSONToolAdapter`, `AnyTool`, `ApprovalRequest`, `AutoApproveHandler`, `AveragingTokenEstimator`, `Branch`, `CallableAgent`, `CharacterBasedTokenEstimator`, `CircularBuffer`, `ClosureInputGuardrail`, `ClosureOutputGuardrail`, `ClosureToolInputGuardrail`, `ClosureToolOutputGuardrail`, `CompositeRunHooks`, `ConduitInferenceProvider`, `ContextBucketCaps`, `ContextBudget`, `ContextKey`, `ContextProfile`, `ConversationMemoryDiagnostics`, `DAG`, `DAGNode`, `DateTimeTool`, `EnvironmentAgent`, `ErrorInfo`, `ExecutionPlan`, `ExecutionResult`, `FallbackChain`, `FallbackStep`, `FallbackSummarizer`, `FunctionTool`, `Guard`, `GuardrailExecutionResult`, `GuardrailResult`, `GuardrailRunnerConfiguration`, `HandoffBuilder`, `HandoffConfiguration`, `HandoffInputData`, `HandoffRequest`, `HandoffResult`, `HiveAgentsContext`, `HiveAgentsDefaultMessageIDFactory`, `HiveAgentsNoopPreModelHook`, `HiveAgentsNoopToolResultTransformer`, `HiveAgentsRunController`, `HiveAgentsRunResumeRequest`, `HiveAgentsRunStartRequest`, `HiveAgentsRuntime`, `HiveBackedAgent`, `HiveCodableJSONCodec`, `HiveCompactionPolicy`, `HiveStep`, `HumanApproval`, `HybridMemoryDiagnostics`, `InferenceOptions`, `InferencePolicy`, `InferenceResponse`, `InputGuard`, `InputGuardrailBuilder`, `Interrupt`, `JSONMetricsReporter`, `KeywordRoutingStrategy`, `LLMRoutingStrategy`, `LoggingModifier`, `LoggingRunHooks`, `Loop`, `MCPCapabilities`, `MCPError`, `MCPErrorObject`, `MCPRequest`, `MCPResource`, `MCPResourceContent`, `MCPResponse`, `MemoryBuilder`, `MemoryMessage`, `MetricsSnapshot`, `MockEmbeddingProvider`, `ModelSettings`, `ModifiedStep`, `NamedModifier`, `NoOpStep`, `OllamaSettings`, `OpenRouterConfiguration`, `OpenRouterModel`, `OpenRouterProviderPreferences`, `OpenRouterRetryStrategy`, `OpenRouterRouting`, `Orchestration`, `OrchestrationChannel`, `OrchestrationGroup`, `OrchestrationStepContext`, `OutputGuard`, `OutputGuardrailBuilder`, `OutputTransformer`, `Parallel`, `ParallelItem`, `PartialToolCallUpdate`, `PerformanceMetrics`, `Pipeline`, `PlanStep`, `PromptString`, `RepeatWhile`, `ResumeToken`, `RetryModifier`, `RetryPolicy`, `Route`, `RouteBranch`, `RouteCondition`, `Router`, `RoutingDecision`, `SendableErrorWrapper`, `Sequential`, `SessionMetadata`, `SlidingWindowDiagnostics`, `SourceLocation`, `Statistics`, `StepError`, `StringTool`, `SummaryMemoryDiagnostics`, `SwarmAgentProfile`, `SwarmEmbeddingProviderAdapter`, `SwarmHiveRunOptionsOverride`, `SwarmMCPToolRegistryAdapter`, `SwarmResponse`, `SwarmStreamChunk`, `SwarmToolCallDelta`, `SwarmToolRegistry`, `TimeoutModifier`, `TokenUsage`, `ToolArguments`, `ToolCall`, `ToolCallRecord`, `ToolChain`, `ToolConditional`, `ToolExecutionEngine`, `ToolExecutionResult`, `ToolFilter`, `ToolGuardrailData`, `ToolInputGuardrailBuilder`, `ToolOutputGuardrailBuilder`, `ToolParameter`, `ToolResult`, `ToolSchema`, `ToolStep`, `ToolTransform`, `TraceEvent`, `TraceSpan`, `TracingHelper`, `Transform`, `TruncatingSummarizer`, `VectorMemoryBuilder`, `VectorMemoryDiagnostics`, `WaxEmbeddingProviderAdapter`, `WaxIntegration`, `WordBasedTokenEstimator`, `WorkflowCheckpointState`, `WorkflowResumeHandle`
+`AgentConfiguration`, `AgentDescription`, `AgentEnvironment`, `AgentResponse`, `AgentResult`, `AgentStep`, `AgentTool`, `AnyAgent`, `AnyHandoffConfiguration`, `AnyJSONToolAdapter`, `AnyTool`, `ApprovalRequest`, `AutoApproveHandler`, `AveragingTokenEstimator`, `Branch`, `CallableAgent`, `CharacterBasedTokenEstimator`, `CircularBuffer`, `ClosureInputGuardrail`, `ClosureOutputGuardrail`, `ClosureToolInputGuardrail`, `ClosureToolOutputGuardrail`, `CompositeRunHooks`, `ConduitInferenceProvider`, `ContextBucketCaps`, `ContextBudget`, `ContextKey`, `ContextProfile`, `ConversationMemoryDiagnostics`, `DAG`, `DAGNode`, `DateTimeTool`, `EnvironmentAgent`, `ErrorInfo`, `ExecutionPlan`, `ExecutionResult`, `FallbackChain`, `FallbackStep`, `FallbackSummarizer`, `FunctionTool`, `Guard`, `GuardrailExecutionResult`, `GuardrailResult`, `GuardrailRunnerConfiguration`, `HandoffBuilder`, `HandoffConfiguration`, `HandoffInputData`, `HandoffRequest`, `HandoffResult`, `HumanApproval`, `HybridMemoryDiagnostics`, `InferenceOptions`, `InferencePolicy`, `InferenceResponse`, `InputGuard`, `InputGuardrailBuilder`, `Interrupt`, `JSONMetricsReporter`, `KeywordRoutingStrategy`, `LLMRoutingStrategy`, `LoggingModifier`, `LoggingRunHooks`, `Loop`, `MCPCapabilities`, `MCPError`, `MCPErrorObject`, `MCPRequest`, `MCPResource`, `MCPResourceContent`, `MCPResponse`, `MemoryBuilder`, `MemoryMessage`, `MetricsSnapshot`, `MockEmbeddingProvider`, `ModelSettings`, `ModifiedStep`, `NamedModifier`, `NoOpStep`, `OllamaSettings`, `OpenRouterConfiguration`, `OpenRouterModel`, `OpenRouterProviderPreferences`, `OpenRouterRetryStrategy`, `OpenRouterRouting`, `Orchestration`, `OrchestrationChannel`, `OrchestrationGroup`, `OrchestrationStepContext`, `OutputGuard`, `OutputGuardrailBuilder`, `OutputTransformer`, `Parallel`, `ParallelItem`, `PartialToolCallUpdate`, `PerformanceMetrics`, `Pipeline`, `PlanStep`, `PromptString`, `RepeatWhile`, `ResumeToken`, `RetryModifier`, `RetryPolicy`, `Route`, `RouteBranch`, `RouteCondition`, `Router`, `RoutingDecision`, `SendableErrorWrapper`, `Sequential`, `SessionMetadata`, `SlidingWindowDiagnostics`, `SourceLocation`, `Statistics`, `StepError`, `StringTool`, `SummaryMemoryDiagnostics`, `SwarmAgentProfile`, `SwarmEmbeddingProviderAdapter`, `SwarmMCPToolRegistryAdapter`, `SwarmResponse`, `SwarmStreamChunk`, `SwarmToolCallDelta`, `SwarmToolRegistry`, `TimeoutModifier`, `TokenUsage`, `ToolArguments`, `ToolCall`, `ToolCallRecord`, `ToolChain`, `ToolConditional`, `ToolExecutionEngine`, `ToolExecutionResult`, `ToolFilter`, `ToolGuardrailData`, `ToolInputGuardrailBuilder`, `ToolOutputGuardrailBuilder`, `ToolParameter`, `ToolResult`, `ToolSchema`, `ToolStep`, `ToolTransform`, `TraceEvent`, `TraceSpan`, `TracingHelper`, `Transform`, `TruncatingSummarizer`, `VectorMemoryBuilder`, `VectorMemoryDiagnostics`, `WaxEmbeddingProviderAdapter`, `WaxIntegration`, `WordBasedTokenEstimator`, `WorkflowCheckpointState`, `WorkflowResumeHandle`
 
 ### Enums (60+)
 
-`AgentContextKey`, `AgentEnvironmentValues`, `AgentError`, `AgentEvent`, `AgentEventStream`, `ApprovalResponse`, `BackoffStrategy`, `BuiltInTools`, `CacheRetention`, `ConduitProviderSelection`, `ContextMode`, `EmbeddingError`, `EmbeddingUtils`, `EventKind`, `EventLevel`, `GuardPhase`, `GuardrailError`, `GuardrailType`, `HiveAgents`, `HiveAgentsToolApprovalPolicy`, `InferenceStreamEvent`, `InferenceStreamUpdate`, `LLM`, `Log`, `MCPServerState`, `MemoryMergeStrategy`, `MemoryOperation`, `MemoryPriority`, `MemoryPriorityHint`, `MergeErrorStrategy`, `MergeStrategies`, `MetricsReporterError`, `ModelSettingsValidationError`, `MultiProviderError`, `OpenRouterProviderError`, `OpenRouterRoutingStrategy`, `OpenRouterToolChoice`, `OrchestrationError`, `OrchestrationValidationError`, `ParallelErrorHandling`, `ParallelExecutionErrorStrategy`, `ParallelMergeStrategy`, `PersistentMemoryError`, `PipelineError`, `ResilienceError`, `RetrievalStrategy`, `RetryPolicyBridge`, `SendableValue`, `SessionError`, `SpanStatus`, `StepStatus`, `StreamHelper`, `SummarizerError`, `Swarm`, `SwarmError`, `SwarmToolRegistryError`, `ToolChainError`, `ToolChoice`, `TruncationStrategy`, `TypedParallel`, `VectorMemoryError`, `Verbosity`, `WorkflowCheckpointPolicy`, `WorkflowExecutionOutcome`, `WorkflowInterruptReason`
+`AgentContextKey`, `AgentEnvironmentValues`, `AgentError`, `AgentEvent`, `AgentEventStream`, `ApprovalResponse`, `BackoffStrategy`, `BuiltInTools`, `CacheRetention`, `ConduitProviderSelection`, `ContextMode`, `EmbeddingError`, `EmbeddingUtils`, `EventKind`, `EventLevel`, `GuardPhase`, `GuardrailError`, `GuardrailType`, `InferenceStreamEvent`, `InferenceStreamUpdate`, `LLM`, `Log`, `MCPServerState`, `MemoryMergeStrategy`, `MemoryOperation`, `MemoryPriority`, `MemoryPriorityHint`, `MergeErrorStrategy`, `MergeStrategies`, `MetricsReporterError`, `ModelSettingsValidationError`, `MultiProviderError`, `OpenRouterProviderError`, `OpenRouterRoutingStrategy`, `OpenRouterToolChoice`, `OrchestrationError`, `OrchestrationValidationError`, `ParallelErrorHandling`, `ParallelExecutionErrorStrategy`, `ParallelMergeStrategy`, `PersistentMemoryError`, `PipelineError`, `ResilienceError`, `RetrievalStrategy`, `RetryPolicyBridge`, `SendableValue`, `SessionError`, `SpanStatus`, `StepStatus`, `StreamHelper`, `SummarizerError`, `Swarm`, `SwarmError`, `SwarmToolRegistryError`, `ToolChainError`, `ToolChoice`, `TruncationStrategy`, `TypedParallel`, `VectorMemoryError`, `Verbosity`, `WorkflowCheckpointPolicy`, `WorkflowExecutionOutcome`, `WorkflowInterruptReason`
 
 ### Protocols (40+)
 
-`AgentBlueprint`, `AgentComponent`, `AgentContextProviding`, `AgentLoop`, `AgentLoopDefinition`, `AgentRuntime`, `AnyJSONTool`, `EmbeddingProvider`, `Guardrail`, `HandoffReceiver`, `HiveAgentsMessageIDFactory`, `HiveAgentsPreModelHook`, `HiveAgentsToolResultTransformer`, `HiveTokenizer`, `HumanApprovalHandler`, `InferenceProvider`, `InferenceStreamingProvider`, `InputGuardrail`, `MCPServer`, `Memory`, `MemoryPromptDescriptor`, `MemorySessionLifecycle`, `MetricsReporter`, `OrchestrationStep`, `OrchestratorProtocol`, `OutputGuardrail`, `PersistentMemoryBackend`, `ResultMergeStrategy`, `RoutingStrategy`, `RunHooks`, `Session`, `StepModifier`, `Summarizer`, `TokenEstimator`, `Tool`, `ToolCallGoal`, `ToolCallStreamingInferenceProvider`, `ToolChainStep`, `ToolInputGuardrail`, `ToolOutputGuardrail`, `Tracer`, `VectorMemoryConfigurable`, `WorkflowCheckpointStore`
+`AgentBlueprint`, `AgentComponent`, `AgentContextProviding`, `AgentLoop`, `AgentLoopDefinition`, `AgentRuntime`, `AnyJSONTool`, `EmbeddingProvider`, `Guardrail`, `HandoffReceiver`, `HumanApprovalHandler`, `InferenceProvider`, `InferenceStreamingProvider`, `InputGuardrail`, `MCPServer`, `Memory`, `MemoryPromptDescriptor`, `MemorySessionLifecycle`, `MetricsReporter`, `OrchestrationStep`, `OrchestratorProtocol`, `OutputGuardrail`, `PersistentMemoryBackend`, `ResultMergeStrategy`, `RoutingStrategy`, `RunHooks`, `Session`, `StepModifier`, `Summarizer`, `TokenEstimator`, `Tool`, `ToolCallGoal`, `ToolCallStreamingInferenceProvider`, `ToolChainStep`, `ToolInputGuardrail`, `ToolOutputGuardrail`, `Tracer`, `VectorMemoryConfigurable`, `WorkflowCheckpointStore`
 
 ### Result Builders (6)
 
@@ -3427,7 +3236,7 @@ public struct AutoApproveHandler: HumanApprovalHandler { ... }
 | `SessionError` | Session management failures |
 | `PipelineError` | Type-safe pipeline failures |
 | `SwarmError` | General framework errors |
-| `SwarmToolRegistryError` | Hive tool registry failures |
+| `SwarmToolRegistryError` | Tool registry failures |
 | `ModelSettingsValidationError` | Invalid model settings |
 | `MetricsReporterError` | Metrics reporting failures |
 

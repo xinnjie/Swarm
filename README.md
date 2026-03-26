@@ -115,7 +115,7 @@ Use `try await workspace.validate()` in development or CI to catch malformed spe
 
 - **Swift concurrency is part of the surface.** Swift 6.2 `StrictConcurrency` is enabled across the package.
 - **Tools stay type-safe.** The `@Tool` macro generates JSON schemas from Swift structs.
-- **Workflows can survive crashes.** [Hive](https://github.com/christopherkarani/Hive) checkpointing lets you resume from an explicit checkpoint ID.
+- **Workflows can survive crashes.** Durable workflow checkpointing lets you resume from an explicit checkpoint ID.
 - **Cloud and on-device models use the same abstractions.** Foundation Models, Anthropic, OpenAI, Ollama, Gemini, OpenRouter, and MLX all fit the same shape.
 - **It is written in Swift all the way down.** `AsyncThrowingStream`, actors, result builders, and macros are first-class here.
 
@@ -254,7 +254,7 @@ for message in await conversation.messages {
 | **Language** | Swift 6.2 | Python | Python |
 | **Data race safety** | Compile-time | Runtime | Runtime |
 | **On-device LLM** | Foundation Models | n/a | n/a |
-| **Execution engine** | Compiled DAG (Hive) | Loop-based | Loop-based |
+| **Execution engine** | Compiled DAG | Loop-based | Loop-based |
 | **Crash recovery** | Checkpoints | n/a | Partial |
 | **Type-safe tools** | `@Tool` macro (compile-time) | Decorators (runtime) | Runtime |
 | **Streaming** | `AsyncThrowingStream` | Callbacks | Callbacks |
@@ -292,7 +292,7 @@ for message in await conversation.messages {
 ├─────────────────────────────────────────────────────────────┤
 │  GuardrailSpec  ·  Resilience  ·  Observability  ·  MCP    │
 ├─────────────────────────────────────────────────────────────┤
-│                    Hive Runtime (optional)                   │
+│              Durable Graph Runtime (internal)               │
 │   Compiled DAG  ·  Checkpointing  ·  Deterministic retry   │
 ├─────────────────────────────────────────────────────────────┤
 │              InferenceProvider (pluggable)                   │

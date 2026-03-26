@@ -4,13 +4,13 @@ The complete API reference covers every public type, protocol, and API in the Sw
 
 ## Complete Reference
 
-The **[Complete API Reference](/swarm-complete-reference)** is a single document covering all subsystems:
+The **[Complete API Reference](/swarm-complete-reference)** is an archival deep reference. For current 0.5.0 usage, prefer the guide pages and API catalog first.
 
 1. **Overview & Architecture** — What Swarm is, layer diagram, platform requirements
 2. **Quick Start** — Minimal working example
 3. **Agents** — All agent types, `AgentRuntime` protocol, configuration
 4. **Tools** — `@Tool` macro, `FunctionTool`, tool chaining, parallel execution
-5. **Workflow** — Fluent core API (`step`, `parallel`, `route`, `repeatUntil`, `timeout`) plus namespaced advanced APIs (`workflow.advanced`)
+5. **Workflow** — Fluent core API (`step`, `parallel`, `route`, `repeatUntil`, `timeout`) plus durable checkpoint/resume APIs under `workflow.durable`
 6. **Handoffs** — `HandoffConfiguration` and handoff coordination
 8. **Memory** — All memory types, sessions, backends, embeddings
 9. **Guardrails** — Input/output/tool guardrails, tripwire modes
@@ -19,7 +19,7 @@ The **[Complete API Reference](/swarm-complete-reference)** is a single document
 12. **MCP Integration** — Client and server
 13. **Providers** — LLM providers, MultiProvider, Foundation Models
 14. **Macros** — `@Tool`, `@Parameter`, `@AgentActor`, `@Traceable`, `#Prompt`, `@Builder`
-15. **Hive Runtime** — DAG compilation, checkpointing, resume
+15. **Durable Runtime** — DAG compilation, checkpointing, resume through Swarm-owned APIs
 
 ## By Topic
 
@@ -36,4 +36,4 @@ The **[Complete API Reference](/swarm-complete-reference)** is a single document
 | [Observability](/observability) | Tracing, `OSLogTracer`, `SwiftLogTracer`, metrics |
 | [MCP](/mcp) | Model Context Protocol client and server |
 | [Providers](/providers) | Inference providers, `MultiProvider` routing |
-| [Hive Swarm Hardening](/hive-swarm-nonfork-hardening) | Non-fork run control, checkpoint capability, deterministic transcript/state hashing |
+| [Durable Runtime Hardening](/durable-runtime-hardening) | Internal implementation note covering run control, checkpoint capability, and deterministic transcript/state hashing |

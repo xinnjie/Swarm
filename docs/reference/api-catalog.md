@@ -2,7 +2,7 @@
 
 Generated from `Sources/Swarm/` on 2026-03-14.
 
-- Scope: all `.swift` files under `Sources/Swarm/`, excluding `HiveSwarm/`
+- Scope: all `.swift` files under `Sources/Swarm/`, excluding `Internal/GraphRuntime/`
 - Source files scanned: 134
 - Public/open symbols cataloged: 2423
 
@@ -720,7 +720,7 @@ Generated from `Sources/Swarm/` on 2026-03-14.
 | 34 | case | public | WorkflowError.invalidRouteCondition(reason:) | `public case invalidRouteCondition(reason: String)` |
 | 39 | case | public | WorkflowError.mergeStrategyFailed(reason:) | `public case mergeStrategyFailed(reason: String)` |
 | 42 | case | public | WorkflowError.allAgentsFailed(errors:) | `public case allAgentsFailed(errors: [String])` |
-| 45 | case | public | WorkflowError.hiveRuntimeUnavailable(reason:) | `public case hiveRuntimeUnavailable(reason: String)` |
+| 45 | case | public | WorkflowError.durableRuntimeUnavailable(reason:) | `public case durableRuntimeUnavailable(reason: String)` |
 | 50 | case | public | WorkflowError.workflowInterrupted(reason:) | `public case workflowInterrupted(reason: String)` |
 | 53 | case | public | WorkflowError.invalidGraph(_:) | `public case invalidGraph(WorkflowValidationError)` |
 | 56 | case | public | WorkflowError.humanApprovalTimeout(prompt:) | `public case humanApprovalTimeout(prompt: String)` |
