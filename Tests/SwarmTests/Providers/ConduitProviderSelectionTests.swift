@@ -158,7 +158,7 @@ struct ConduitProviderSelectionTests {
         #expect(config.healthCheck == false)
     }
 
-#if CONDUIT_TRAIT_MLX && canImport(MLX)
+#if canImport(MLX)
     @Test("Builds MLX text-only provider")
     func buildsMLXProvider() {
         let provider = ConduitProviderSelection

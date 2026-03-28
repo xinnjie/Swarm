@@ -132,7 +132,7 @@ struct LLMPresetsTests {
         #expect(configuration.healthCheck == false)
     }
 
-#if CONDUIT_TRAIT_MLX && canImport(MLX)
+#if canImport(MLX)
     @Test("MLX preset builds a text-only conversation adapter")
     func mlxPresetBuildsTextOnlyConversationAdapter() throws {
         let preset = LLM.mlx("mlx-community/Llama-3.2-1B-Instruct-4bit")

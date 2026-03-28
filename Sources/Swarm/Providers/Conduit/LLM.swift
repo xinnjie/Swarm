@@ -29,12 +29,12 @@ public struct LLM: Sendable, InferenceProvider {
         case openRouter(OpenRouterConfig)
         case minimax(MiniMaxConfig)
         case ollama(OllamaConfig)
-#if CONDUIT_TRAIT_MLX && canImport(MLX)
+#if canImport(MLX)
         case mlx(MLXConfig)
 #endif
     }
 
-#if CONDUIT_TRAIT_MLX && canImport(MLX)
+#if canImport(MLX)
     private enum MLXConfig: Sendable {
         case mlx(String)
         case mlxLocal(String)
@@ -161,7 +161,7 @@ public struct LLM: Sendable, InferenceProvider {
         return LLM(kind: .openRouter(config))
     }
 
-#if CONDUIT_TRAIT_MLX && canImport(MLX)
+#if canImport(MLX)
     /// Creates an MLX-backed `LLM` provider for local inference.
     ///
     /// - Parameter model: The MLX model identifier (for example, `"mlx-community/Llama-3.2-1B-Instruct-4bit"`).
@@ -246,7 +246,7 @@ public struct LLM: Sendable, InferenceProvider {
             let provider = ollamaProvider(settings: config.settings)
             let modelID = Self.openAIModelID(config.model)
             return ConduitInferenceProvider(provider: provider, model: modelID)
-#if CONDUIT_TRAIT_MLX && canImport(MLX)
+#if canImport(MLX)
         case let .mlx(config):
             let model: Conduit.Model = switch config {
             case let .mlx(model):

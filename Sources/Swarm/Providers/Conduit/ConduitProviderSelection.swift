@@ -157,7 +157,7 @@ public enum ConduitProviderSelection: Sendable, InferenceProvider {
         #endif
     }
 
-#if CONDUIT_TRAIT_MLX && canImport(MLX)
+#if canImport(MLX)
     /// Creates an MLX-backed provider for a Hugging Face model identifier.
     public static func mlx(model: String) -> ConduitProviderSelection {
         .provider(makeMLXInferenceProvider(model: .mlx(model)))

@@ -1,4 +1,4 @@
-#if CONDUIT_TRAIT_MLX && canImport(MLX)
+#if canImport(MLX)
 import Conduit
 import ConduitAdvanced
 import Foundation
