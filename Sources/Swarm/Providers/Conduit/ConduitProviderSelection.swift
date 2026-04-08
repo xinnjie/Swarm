@@ -6,6 +6,9 @@
 import Conduit
 import ConduitAdvanced
 import Foundation
+#if canImport(FoundationModels)
+import FoundationModels
+#endif
 
 #if canImport(FoundationModels)
 import FoundationModels
@@ -186,6 +189,20 @@ public enum ConduitProviderSelection: Sendable, InferenceProvider {
     }
 #endif
 
+#if canImport(FoundationModels)
+    /// Creates a Conduit-backed Apple Foundation Models provider.
+    @available(macOS 26.0, iOS 26.0, watchOS 26.0, tvOS 26.0, visionOS 26.0, *)
+    public static func foundationModels() -> ConduitProviderSelection {
+        let provider = FoundationModelsProvider()
+        let bridge = ConduitInferenceProvider(
+            provider: provider,
+            model: .foundationModels,
+            supportsStreamingToolCalls: false
+        )
+        return .provider(bridge)
+    }
+#endif
+
     /// Exposes the underlying inference provider.
     public func makeProvider() -> any InferenceProvider {
         switch self {
@@ -240,6 +257,16 @@ public enum ConduitProviderSelection: Sendable, InferenceProvider {
         let bridge = ConduitInferenceProvider(provider: provider, model: modelID)
         return .provider(bridge)
     }
+
+#if canImport(FoundationModels)
+    @available(macOS 26.0, iOS 26.0, watchOS 26.0, tvOS 26.0, visionOS 26.0, *)
+    static func foundationModelsIfAvailable() -> ConduitProviderSelection? {
+        guard SystemLanguageModel.default.availability == .available else {
+            return nil
+        }
+        return foundationModels()
+    }
+#endif
 }
 
 extension ConduitProviderSelection: CapabilityReportingInferenceProvider {
@@ -399,4 +426,11 @@ public extension InferenceProvider where Self == ConduitProviderSelection {
     ) -> ConduitProviderSelection {
         ConduitProviderSelection.minimax(apiKey: apiKey, model: model)
     }
+
+#if canImport(FoundationModels)
+    @available(macOS 26.0, iOS 26.0, watchOS 26.0, tvOS 26.0, visionOS 26.0, *)
+    static func foundationModels() -> ConduitProviderSelection {
+        ConduitProviderSelection.foundationModels()
+    }
+#endif
 }

@@ -8,22 +8,13 @@
 
 import Foundation
 
-#if canImport(FoundationModels)
-import FoundationModels
-#endif
-
 enum DefaultInferenceProviderFactory {
     static func makeFoundationModelsProviderIfAvailable() -> (any InferenceProvider)? {
         #if canImport(FoundationModels)
         if #available(macOS 26.0, iOS 26.0, watchOS 26.0, tvOS 26.0, visionOS 26.0, *) {
-            let model = SystemLanguageModel.default
-            guard model.availability == .available else {
-                return nil
-            }
-            return ConduitProviderSelection.foundationModels()
+            return ConduitProviderSelection.foundationModelsIfAvailable()?.makeProvider()
         }
         #endif
-
         return nil
     }
 }

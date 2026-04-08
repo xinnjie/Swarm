@@ -30,22 +30,24 @@ struct ConduitProviderSelectionTests {
         #expect(provider is ConduitInferenceProvider<OpenAIProvider>)
     }
 
-    @Test("Builds Foundation Models Conduit provider with non-streaming tool-call capabilities")
+#if canImport(FoundationModels)
+    @Test("Builds Foundation Models Conduit provider without streaming tool-call capability")
     func buildsFoundationModelsProvider() {
         guard #available(macOS 26.0, iOS 26.0, watchOS 26.0, tvOS 26.0, visionOS 26.0, *) else {
             return
         }
 
-        let provider = ConduitProviderSelection
-            .foundationModels()
-            .makeProvider()
+        let selection = ConduitProviderSelection.foundationModels()
+        let provider = selection.makeProvider()
+        let capabilities = InferenceProviderCapabilities.resolved(for: selection)
 
-        #expect(provider is ConduitInferenceProvider<FoundationModelsProvider>)
-        let capabilities = InferenceProviderCapabilities.resolved(for: provider)
+        #expect(capabilities.contains(.conversationMessages))
         #expect(capabilities.contains(.nativeToolCalling))
         #expect(capabilities.contains(.structuredOutputs))
         #expect(capabilities.contains(.streamingToolCalls) == false)
+        #expect(provider is ConduitInferenceProvider<FoundationModelsProvider>)
     }
+#endif
 
     @Test("Builds MiniMax Conduit provider")
     func buildsMiniMaxProvider() {
