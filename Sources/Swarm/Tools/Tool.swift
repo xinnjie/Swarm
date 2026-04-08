@@ -482,9 +482,10 @@ private enum ToolArgumentProcessor {
 
         var normalized = arguments
 
-        // Apply default values
+        // Apply default values (also when model explicitly sends null)
         for param in parameters {
-            if normalized[param.name] == nil, let defaultValue = param.defaultValue {
+            let currentValue = normalized[param.name]
+            if currentValue == nil || currentValue == .null, let defaultValue = param.defaultValue {
                 normalized[param.name] = defaultValue
             }
         }

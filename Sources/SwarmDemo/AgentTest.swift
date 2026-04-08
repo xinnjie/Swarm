@@ -1,6 +1,10 @@
 import Foundation
 import Swarm
 
+#if canImport(FoundationModels)
+import FoundationModels
+#endif
+
 #if canImport(AnyLanguageModel) && SWARM_DEMO_ANYLANGUAGEMODEL
 import AnyLanguageModel
 #endif
@@ -18,57 +22,73 @@ struct MyApp {
         Log.bootstrap()
         print("🚀 Starting Swarm Playground...")
 
-        guard let tavilyKey = ProcessInfo.processInfo.environment["TAVILY_API_KEY"], !tavilyKey.isEmpty else {
-            fatalError("Missing TAVILY_API_KEY in environment variables.")
-        }
-        let searchTool = WebSearchTool(apiKey: tavilyKey)
-        print("Search tool initialized: \(searchTool.name)")
-
-        guard let openRouterKey = ProcessInfo.processInfo.environment["OPENROUTER_API_KEY"], !openRouterKey.isEmpty else {
-            fatalError("Missing OPENROUTER_API_KEY in environment variables.")
-        }
-        let provider = LLM.openRouter(apiKey: openRouterKey, model: "xiaomi/mimo-v2-flash:free")
-
+        // MARK: - Provider: Apple Foundation Models (on-device, macOS 26+)
         let inferenceProvider: any InferenceProvider
-        #if canImport(AnyLanguageModel) && SWARM_DEMO_ANYLANGUAGEMODEL
-            guard let anthropicKey = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !anthropicKey.isEmpty else {
-                fatalError("Missing ANTHROPIC_API_KEY in environment variables.")
-            }
-            let model = AnthropicLanguageModel(
-                apiKey: anthropicKey,
-                model: "claude-haiku-4-5"
-            )
-
-            let session = LanguageModelSession(model: model, tools: []) {
-                """
-                You are a helpful research assistant.
-                You have access to a websearch tool.
-                You never give up.
-                """
-            }
+        #if canImport(FoundationModels)
+        if #available(macOS 26.0, *), SystemLanguageModel.default.availability == .available {
+            let session = LanguageModelSession()
+            print("✅ Using Apple Foundation Models (on-device)")
             inferenceProvider = session
+        } else {
+            print("⚠️ Foundation Models not available, falling back to Ollama Cloud")
+            inferenceProvider = LLM.ollama("gpt-oss:120b-cloud")
+        }
         #else
-            inferenceProvider = provider
+        print("⚠️ Foundation Models not supported on this platform, using Ollama Cloud")
+        inferenceProvider = LLM.ollama("gpt-oss:120b-cloud")
         #endif
 
-        let input = "Conduct deep research on the war on ukraine and its impact on global security. Provide a detailed report with findings, potential implications, and recommendations."
+        // MARK: - Tools: built-in only (no API keys required)
+        let searchTool = WebSearchTool.fromEnvironment()
+        print("Search tool initialized: \(searchTool.name)")
+
         let tools: [any AnyJSONTool] = [
-            searchTool.asAnyJSONTool(),
+            searchTool,
             StringTool(),
             DateTimeTool(),
+            CalculatorTool(),
         ]
 
-        // V3 canonical Agent init — one path, no Builder.
-        // Provider resolution order:
-        //   1. Explicit provider passed to Agent(...)
-        //   2. Environment provider via .environment(\.inferenceProvider, ...)
-        //   3. Swarm.defaultProvider / Swarm.cloudProvider
-        //   4. Apple Foundation Models (on-device), if available
+        // MARK: - Agent
+        let input = """
+        Conduct deep research on Metal 4 and MLX for Apple Silicon. Cover:
+
+        1. Metal 4 — new compute pipeline (MTL4CommandBuffer, MTL4ComputeCommandEncoder, MTL4ArgumentTable), residency sets, barriers, Shader ML, GPU Neural Accelerators, MSL 4.0 features, and ray tracing improvements. Include a minimal compute shader example showing the new dispatch pattern.
+
+        2. MLX — array framework for Apple Silicon. Explain how it differs from PyTorch/Metal, its lazy evaluation model, automatic differentiation, and how to build/train a simple neural network in Swift or Python. Include a code example.
+
+        3. How Metal 4 and MLX complement each other — when to use raw Metal vs MLX for on-device inference, fine-tuning, and training.
+
+        4. Performance considerations — memory management, kernel dispatch overhead, quantization, and ANE vs GPU vs CPU routing.
+
+        Provide a comprehensive technical report with code examples for each section.
+        """
+
         let agent: Agent
         do {
+            var config = AgentConfiguration.default
+                .maxIterations(50)
+
+            // For Foundation Models (4096 token window), enforce strict context management:
+            // 1. strict4k activates PromptEnvelope truncation (keeps head + tail, cuts middle)
+            // 2. Membrane pointerizes tool results > 1KB into 240-char summaries + pointers
+            #if canImport(FoundationModels)
+            if #available(macOS 26.0, *), SystemLanguageModel.default.availability == .available {
+                config = config.contextProfile(.strict4k)
+                print("📐 Context profile: strict4k (Membrane pointer + PromptEnvelope truncation)")
+            }
+            #endif
+
             agent = try Agent(
                 tools: tools,
-                instructions: "You are a deep research Agent. When you don't find something you keep looking.",
+                instructions: """
+                You are a senior Apple Silicon ML/GPU engineer conducting deep research.
+                Use the websearch tool to find the latest WWDC sessions, Apple documentation, and GitHub repos.
+                Always search for current information before answering.
+                Provide detailed, technically accurate responses with working code examples.
+                Structure your response with clear sections and subsections.
+                """,
+                configuration: config,
                 inferenceProvider: inferenceProvider,
                 tracer: ConsoleTracer()
             )

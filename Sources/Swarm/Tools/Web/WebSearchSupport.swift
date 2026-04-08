@@ -578,13 +578,19 @@ internal struct WebExecutionEngine: Sendable {
     }
 
     private func liveSearch(query: String, request: WebToolRequest) async throws -> [WebSearchHit] {
-        guard configuration.hasLiveSearchBackend else { return [] }
-        return try await TavilySearchBackend(configuration: configuration).search(
+        guard configuration.hasLiveSearchBackend else {
+            Log.agents.warning("[WebSearchTool] liveSearch skipped: no API key configured (hasLiveSearchBackend=false)")
+            return []
+        }
+        Log.agents.info("[WebSearchTool] liveSearch: query='\(query)', maxResults=\(request.maxResults), domains=\(request.domains), recencyDays=\(request.recencyDays ?? -1)")
+        let hits = try await TavilySearchBackend(configuration: configuration).search(
             query: query,
             maxResults: request.maxResults,
             domains: request.domains,
             recencyDays: request.recencyDays
         )
+        Log.agents.info("[WebSearchTool] liveSearch returned \(hits.count) hits for query: '\(query)'")
+        return hits
     }
 
     private func materializeArtifact(
@@ -1192,8 +1198,11 @@ internal struct TavilySearchBackend: Sendable {
         recencyDays: Int?
     ) async throws -> [WebSearchHit] {
         guard let apiKey = configuration.apiKey?.trimmingCharacters(in: .whitespacesAndNewlines), !apiKey.isEmpty else {
+            Log.agents.warning("[TavilySearchBackend] API key is empty — returning 0 hits")
             return []
         }
+
+        Log.agents.info("[TavilySearchBackend] POST api.tavily.com/search — query='\(query)', maxResults=\(maxResults)")
 
         guard let url = URL(string: "https://api.tavily.com/search") else {
             throw AgentError.toolExecutionFailed(toolName: "websearch", underlyingError: "Invalid Tavily URL")
@@ -1224,13 +1233,16 @@ internal struct TavilySearchBackend: Sendable {
             throw AgentError.toolExecutionFailed(toolName: "websearch", underlyingError: "Tavily returned a non-HTTP response")
         }
         guard http.statusCode == 200 else {
+            let errorBody = String(data: data, encoding: .utf8) ?? "(no body)"
+            Log.agents.error("[TavilySearchBackend] HTTP \(http.statusCode) — \(errorBody)")
             throw AgentError.toolExecutionFailed(
                 toolName: "websearch",
-                underlyingError: "Tavily request failed (HTTP \(http.statusCode))"
+                underlyingError: "Tavily request failed (HTTP \(http.statusCode)): \(errorBody)"
             )
         }
 
         let decoded = try JSONDecoder().decode(Response.self, from: data)
+        Log.agents.info("[TavilySearchBackend] Decoded \(decoded.results.count) results from Tavily")
         return decoded.results.enumerated().map { index, result in
             WebSearchHit(
                 id: "tavily-\(index)-\(abs(result.url.hashValue))",

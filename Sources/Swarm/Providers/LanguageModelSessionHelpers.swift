@@ -35,7 +35,8 @@ enum LanguageModelSessionToolPromptBuilder {
         basePrompt: String,
         tools: [ToolSchema],
         context: LanguageModelSessionToolCallingContext,
-        structuredOutput: StructuredOutputRequest? = nil
+        structuredOutput: StructuredOutputRequest? = nil,
+        maxToolDefTokens: Int = 200
     ) -> String {
         guard !tools.isEmpty else {
             if let structuredOutput {
@@ -63,14 +64,28 @@ enum LanguageModelSessionToolPromptBuilder {
             toolDefinitions.append(toolDef)
         }
 
+        var toolDefsText = toolDefinitions.joined(separator: "\n\n")
+
+        // Truncate tool definitions to fit within budget (Foundation Models 4096-token window).
+        // Tool defs for WebSearchTool alone are ~800 tokens. Cap at 400 to leave room for
+        // conversation history, system prompt, and tool results.
+        let maxToolDefTokens = 400
+        let estimatedToolTokens = toolDefsText.count / 4
+        if estimatedToolTokens > maxToolDefTokens {
+            let maxChars = maxToolDefTokens * 4
+            if toolDefsText.count > maxChars {
+                toolDefsText = String(toolDefsText.prefix(maxChars)) + "\n  ... (additional parameters omitted)"
+            }
+        }
+
         var prompt = """
             \(basePrompt)
 
             Available tools:
-            \(toolDefinitions.joined(separator: "\n\n"))
+            \(toolDefsText)
 
             If you decide to use a tool, respond with only a single JSON object in this exact format and no surrounding text:
-            {"\(LanguageModelSessionToolCallingContext.envelopeKey)": {"nonce": "\(context.nonce)", "tool": "tool_name", "arguments": {"param1": "value1", "param2": "value2"}}}
+            {"\(LanguageModelSessionToolCallingContext.envelopeKey)": {"nonce": "\(context.nonce)", "tool": "tool_name", "arguments": {"param1": "value1"}}}
 
             Never emit that JSON envelope unless you are requesting a tool call.
             If no tool is needed, respond normally without JSON.
@@ -80,9 +95,7 @@ enum LanguageModelSessionToolPromptBuilder {
             prompt = StructuredOutputPromptBuilder.appendInstruction(to: prompt, request: structuredOutput)
         }
 
-        return """
-            \(prompt)
-            """
+        return prompt
     }
 
     /// Converts a ToolParameter type to a human-readable description.
@@ -136,6 +149,9 @@ enum LanguageModelSessionToolParser {
 
         // Recover a single valid Swarm envelope from common wrappers such as prose or markdown fences.
         let candidates = extractJSONObjectCandidates(from: content)
+        if !candidates.isEmpty {
+            print("[FM ToolParser] extracted \(candidates.count) JSON candidates from response")
+        }
         var parsedCandidates: [[InferenceResponse.ParsedToolCall]] = []
 
         for candidate in candidates {
@@ -144,6 +160,8 @@ enum LanguageModelSessionToolParser {
                 availableTools: availableTools,
                 context: context
             ) else {
+                let reason = debugParseFailure(candidate, availableTools: availableTools, context: context)
+                print("[FM ToolParser] candidate rejected: \(reason)")
                 continue
             }
             parsedCandidates.append(toolCalls)
@@ -153,6 +171,38 @@ enum LanguageModelSessionToolParser {
         }
 
         return parsedCandidates.first
+    }
+
+    /// Debug: traces why a candidate failed to parse as a valid tool call.
+    private static func debugParseFailure(
+        _ candidate: String,
+        availableTools: [ToolSchema],
+        context: LanguageModelSessionToolCallingContext
+    ) -> String {
+        let trimmed = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.first != "{" || trimmed.last != "}" {
+            return "candidate doesn't start/end with braces: first=\(String(trimmed.prefix(1))), last=\(String(trimmed.suffix(1)))"
+        }
+        guard let data = trimmed.data(using: .utf8) else {
+            return "failed to encode as UTF-8 data"
+        }
+        guard let jsonObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return "failed to deserialize JSON"
+        }
+        guard let envelope = jsonObject[LanguageModelSessionToolCallingContext.envelopeKey] as? [String: Any] else {
+            return "missing envelope key '\(LanguageModelSessionToolCallingContext.envelopeKey)'; keys=\(jsonObject.keys.joined(separator: ", "))"
+        }
+        guard let nonce = envelope["nonce"] as? String else {
+            return "missing nonce in envelope"
+        }
+        if nonce != context.nonce {
+            return "nonce mismatch: got='\(nonce.prefix(8))...', expected='\(context.nonce.prefix(8))...'"
+        }
+        let toolName = envelope["tool"] as? String ?? "(nil)"
+        guard availableTools.contains(where: { $0.name == toolName }) else {
+            return "tool '\(toolName)' not in available tools: \(availableTools.map(\.name).joined(separator: ", "))"
+        }
+        return "unknown failure"
     }
 
     /// Parses an exact JSON object string into Swarm tool calls when it matches the expected envelope.
@@ -278,6 +328,7 @@ enum LanguageModelSessionToolCallingEmulation {
             context: context,
             structuredOutput: options.structuredOutput
         )
+
         let generatedText = try await generateText(promptToGenerate, options)
         return makeInferenceResponse(from: generatedText, availableTools: tools, context: context)
     }

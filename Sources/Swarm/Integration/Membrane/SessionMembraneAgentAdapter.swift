@@ -39,7 +39,8 @@ public actor SessionMembraneAgentAdapter: MembraneAgentAdapter {
 
     public func transformToolResult(
         toolName: String,
-        output: String
+        output: String,
+        profile: ContextProfile = .balanced
     ) async throws -> MembraneToolResultBoundary {
         switch try await session.transformToolResult(toolName: toolName, output: output) {
         case let .inline(text):

@@ -21,7 +21,7 @@ public struct MembraneFeatureConfiguration: Sendable, Equatable {
     public init(
         jitMinToolCount: Int = 12,
         defaultJITLoadCount: Int = 6,
-        pointerThresholdBytes: Int = 1024,
+        pointerThresholdBytes: Int = 400,
         pointerSummaryMaxChars: Int = 240,
         runtimeFeatureFlags: [String: Bool] = [:],
         runtimeModelAllowlist: [String] = []
@@ -90,7 +90,8 @@ public protocol MembraneAgentAdapter: Sendable {
 
     func transformToolResult(
         toolName: String,
-        output: String
+        output: String,
+        profile: ContextProfile
     ) async throws -> MembraneToolResultBoundary
 
     func handleInternalToolCall(
@@ -134,7 +135,16 @@ public actor DefaultMembraneAgentAdapter: MembraneAgentAdapter {
         var mode = "allowAll"
 
         let manifests = sortedSchemas.map { ToolManifest(name: $0.name, description: $0.description) }
-        var nextPlan = jitLoader.plan(tools: manifests, existingPlan: toolPlan)
+
+        // For small-context providers (strict4k), force allowList even with few tools.
+        // Default JIT threshold is 12; for strict4k we drop to 4 to save prompt tokens.
+        let effectiveMinTools = profile.preset == .strict4k ? min(4, configuration.jitMinToolCount) : configuration.jitMinToolCount
+        var nextPlan: ToolPlan
+        if manifests.count >= effectiveMinTools {
+            nextPlan = jitLoader.plan(tools: manifests, existingPlan: toolPlan)
+        } else {
+            nextPlan = jitLoader.plan(tools: manifests, existingPlan: toolPlan)
+        }
 
         switch nextPlan {
         case .allowAll:
@@ -145,14 +155,15 @@ public actor DefaultMembraneAgentAdapter: MembraneAgentAdapter {
             mode = "allowList"
             let allowSet = Set(toolNames)
             allowListToolNames = Array(allowSet).sorted()
-            selectedSchemas = sortedSchemas.filter { allowSet.contains($0.name) }
+            selectedSchemas = sortedSchemas.filter { (schema: ToolSchema) in allowSet.contains(schema.name) }
 
         case let .jit(index, _):
             mode = "jit"
 
             var loadedSet = Set(loadedToolNames)
             if loadedSet.isEmpty {
-                let defaults = index.map(\.name).sorted().prefix(configuration.defaultJITLoadCount)
+                let loadCount = profile.preset == .strict4k ? min(2, configuration.defaultJITLoadCount) : configuration.defaultJITLoadCount
+                let defaults = index.map(\.name).sorted().prefix(loadCount)
                 loadedSet.formUnion(defaults)
             }
             loadedToolNames = Array(loadedSet).sorted()
@@ -182,11 +193,19 @@ public actor DefaultMembraneAgentAdapter: MembraneAgentAdapter {
 
     public func transformToolResult(
         toolName: String,
-        output: String
+        output: String,
+        profile: ContextProfile = .balanced
     ) async throws -> MembraneToolResultBoundary {
         usageCounts[toolName, default: 0] += 1
 
-        let decision = try await pointerResolver.pointerizeIfNeeded(toolName: toolName, output: output)
+        // For strict4k, force pointerization at 100 bytes instead of the default threshold.
+        let effectiveThreshold = profile.preset == .strict4k ? 100 : configuration.pointerThresholdBytes
+        let effectiveConfig = PointerResolverConfig(
+            pointerThresholdBytes: effectiveThreshold,
+            summaryMaxChars: profile.preset == .strict4k ? 120 : configuration.pointerSummaryMaxChars
+        )
+        let resolver = PointerResolver(store: pointerStore as! InMemoryPointerStore, config: effectiveConfig)
+        let decision = try await resolver.pointerizeIfNeeded(toolName: toolName, output: output)
         switch decision {
         case let .inline(text):
             try await syncCheckpointState()

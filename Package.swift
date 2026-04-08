@@ -12,6 +12,7 @@ var packageProducts: [Product] = [
 
 if includeDemo {
     packageProducts.append(.executable(name: "SwarmDemo", targets: ["SwarmDemo"]))
+    packageProducts.append(.executable(name: "ContextBenchmark", targets: ["ContextBenchmark"]))
     packageProducts.append(.executable(name: "SwarmMCPServerDemo", targets: ["SwarmMCPServerDemo"]))
 }
 
@@ -93,6 +94,23 @@ var packageTargets: [Target] = [
         ],
         swiftSettings: swarmSwiftSettings
     ),
+    .target(
+        name: "SwarmCapabilityShowcaseSupport",
+        dependencies: [
+            "Swarm",
+            "SwarmMCP",
+        ],
+        swiftSettings: swarmSwiftSettings
+    ),
+    .executableTarget(
+        name: "SwarmCapabilityShowcase",
+        dependencies: [
+            "SwarmCapabilityShowcaseSupport",
+        ],
+        swiftSettings: [
+            .enableExperimentalFeature("StrictConcurrency")
+        ]
+    ),
 
     // MARK: - Tests
     .testTarget(
@@ -131,6 +149,15 @@ var packageTargets: [Target] = [
         swiftSettings: [
             .enableExperimentalFeature("StrictConcurrency")
         ]
+    ),
+    .testTarget(
+        name: "SwarmCapabilityShowcaseTests",
+        dependencies: [
+            "SwarmCapabilityShowcaseSupport",
+        ],
+        swiftSettings: [
+            .enableExperimentalFeature("StrictConcurrency")
+        ]
     )
 ]
 
@@ -138,6 +165,16 @@ if includeDemo {
     packageTargets.append(
         .executableTarget(
             name: "SwarmDemo",
+            dependencies: ["Swarm"],
+            swiftSettings: [
+                .enableExperimentalFeature("StrictConcurrency")
+            ]
+        )
+    )
+
+    packageTargets.append(
+        .executableTarget(
+            name: "ContextBenchmark",
             dependencies: ["Swarm"],
             swiftSettings: [
                 .enableExperimentalFeature("StrictConcurrency")

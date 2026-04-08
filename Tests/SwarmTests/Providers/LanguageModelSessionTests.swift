@@ -49,6 +49,8 @@ struct LanguageModelSessionToolPromptTests {
 
         #expect(prompt.contains(#""swarm_tool_call""#))
         #expect(prompt.contains(#""nonce": "nonce-123""#))
+        #expect(prompt.contains(#""tool": "tool_name""#))
+        #expect(prompt.contains(#""arguments": {"param1": "value1"}"#))
         #expect(prompt.contains("\"tool\":"))
         #expect(prompt.contains("only a single JSON object"))
     }

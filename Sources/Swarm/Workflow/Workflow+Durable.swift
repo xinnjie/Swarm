@@ -7,13 +7,13 @@ public extension Workflow {
     struct Durable: Sendable {
         fileprivate let workflow: Workflow
 
-        enum CheckpointPolicy: Sendable {
+        public enum CheckpointPolicy: Sendable {
             case onCompletion
             case everyStep
         }
 
         /// Enables workflow checkpointing for this workflow.
-        func checkpoint(id: String, policy: CheckpointPolicy = .onCompletion) -> Workflow {
+        public func checkpoint(id: String, policy: CheckpointPolicy = .onCompletion) -> Workflow {
             var copy = workflow
             copy.advancedConfiguration.checkpoint = Workflow.CheckpointConfiguration(
                 id: id,
@@ -23,14 +23,14 @@ public extension Workflow {
         }
 
         /// Configures checkpoint persistence for durable workflow execution.
-        func checkpointing(_ checkpointing: WorkflowCheckpointing) -> Workflow {
+        public func checkpointing(_ checkpointing: WorkflowCheckpointing) -> Workflow {
             var copy = workflow
             copy.advancedConfiguration.checkpointing = checkpointing
             return copy
         }
 
         /// Adds a workflow-level fallback step.
-        func fallback(
+        public func fallback(
             primary: some AgentRuntime,
             to backup: some AgentRuntime,
             retries: Int = 0
@@ -41,13 +41,13 @@ public extension Workflow {
         }
 
         /// Executes a durable workflow, optionally resuming from a checkpoint ID.
-        func execute(_ input: String, resumeFrom checkpointID: String? = nil) async throws -> AgentResult {
+        public func execute(_ input: String, resumeFrom checkpointID: String? = nil) async throws -> AgentResult {
             try await workflow.executeDurable(input, resumeFrom: checkpointID)
         }
 
         /// Backward-compatible alias for `execute(_:resumeFrom:)`.
         @available(*, deprecated, renamed: "execute(_:resumeFrom:)")
-        func run(_ input: String, resumeFrom checkpointID: String? = nil) async throws -> AgentResult {
+        public func run(_ input: String, resumeFrom checkpointID: String? = nil) async throws -> AgentResult {
             try await execute(input, resumeFrom: checkpointID)
         }
     }

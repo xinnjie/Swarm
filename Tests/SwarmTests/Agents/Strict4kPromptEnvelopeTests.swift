@@ -4,6 +4,43 @@ import Testing
 
 @Suite("Strict4k Prompt Envelope")
 struct Strict4kPromptEnvelopeTests {
+    @Test("DefaultAgentMemory strict4k prompt retains retrieved context and current request")
+    func defaultMemoryPromptKeepsLiveConversation() async throws {
+        let provider = MockInferenceProvider(responses: ["agent-ok"])
+        let waxURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("wax")
+        let memory = try DefaultAgentMemory(
+            configuration: .init(
+                contextCoreConfiguration: .default,
+                waxStoreURL: waxURL
+            )
+        )
+        await memory.add(.assistant(longBlock("remembered", lines: 20)))
+        let session = try await makeLargeSession()
+
+        let agent = try Agent(
+            tools: [],
+            instructions: longBlock("instructions", lines: 220),
+            configuration: strict4kConfig(),
+            memory: memory,
+            inferenceProvider: provider
+        )
+
+        _ = try await agent.run("needle-user-input", session: session)
+
+        guard let prompt = await provider.lastGenerateCall?.prompt else {
+            Issue.record("Expected Agent to call generate() when no tools are configured")
+            return
+        }
+
+        #expect(prompt.contains("[Retrieved Context]"))
+        #expect(prompt.contains("[Current Conversation]"))
+        #expect(prompt.contains("needle-user-input"))
+        #expect(prompt.contains("instructions-0"))
+        #expect(prompt.contains("remembered-0"))
+    }
+
     @Test("Agent caps prompt to strict4k max input budget")
     func agentCapsPrompt() async throws {
         let provider = MockInferenceProvider(responses: ["agent-ok"])

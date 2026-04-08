@@ -1161,7 +1161,81 @@ public struct Agent: AgentRuntime, Sendable {
             do {
                 try checkCancellationAndTimeout(startTime: startTime)
 
-                let rawPrompt = buildPrompt(from: conversationHistory)
+                let rawPrompt: String
+                if configuration.effectiveContextProfile.preset == .strict4k {
+                    // Use ContextCore's intelligent windowing if available.
+                    // DefaultAgentMemory wraps ContextCoreMemory internally.
+                    let historyBudget = configuration.effectiveContextProfile.budget.workingTokens
+                    let lastMsg = conversationHistory.last
+                    let query: String
+                    switch lastMsg {
+                    case .assistant(let content, _):
+                        query = content
+                    case .toolResult(_, let output, _):
+                        query = String(output.prefix(200))
+                    default:
+                        query = input
+                    }
+                    var windowedContext = ""
+                    if let defaultMem = activeMemory as? DefaultAgentMemory {
+                        windowedContext = await defaultMem.context(for: query, tokenLimit: historyBudget)
+                    } else if let ccMemory = activeMemory as? ContextCoreMemory {
+                        windowedContext = await ccMemory.context(for: query, tokenLimit: historyBudget)
+                    }
+                    if !windowedContext.isEmpty {
+                        let livePrompt = buildPrompt(from: conversationHistory)
+                        rawPrompt = """
+                        [Retrieved Context]
+                        \(windowedContext)
+
+                        [Current Conversation]
+                        \(livePrompt)
+                        """
+                    } else {
+                        // Fallback: manual pruning with summarization.
+                        var capped = conversationHistory
+                        for i in capped.indices {
+                            if case .toolResult(let toolName, let output, let toolCallID) = capped[i], output.count > 400 {
+                                capped[i] = .toolResult(toolName: toolName, result: String(output.prefix(400)) + "\n[... truncated ...]", toolCallID: toolCallID)
+                            }
+                            if case .assistant(let content, let toolCalls) = capped[i], !toolCalls.isEmpty {
+                                let nameOnlyCalls = toolCalls.map { tc in
+                                    InferenceResponse.ParsedToolCall(id: tc.id, name: tc.name, arguments: [:])
+                                }
+                                capped[i] = .assistant(content, toolCalls: nameOnlyCalls)
+                            }
+                        }
+                        if capped.count > 6 {
+                            let head = capped.prefix(2)
+                            let tail = capped.suffix(3)
+                            let middle = capped.dropFirst(2).dropLast(3)
+                            var summaryParts: [String] = []
+                            for msg in middle {
+                                switch msg {
+                                case .assistant(_, let toolCalls) where !toolCalls.isEmpty:
+                                    summaryParts.append("called " + toolCalls.map(\.name).joined(separator: ", "))
+                                case .toolResult(let toolName, let output, _):
+                                    summaryParts.append("\(toolName): \(output.prefix(40).replacingOccurrences(of: "\n", with: " "))")
+                                default:
+                                    break
+                                }
+                            }
+                            var pruned = Array(head)
+                            pruned.append(.assistant("[summary: \(summaryParts.joined(separator: "; "))]", toolCalls: []))
+                            pruned.append(contentsOf: tail)
+                            rawPrompt = buildPrompt(from: pruned)
+                        } else if capped.count > 5 {
+                            var pruned = Array(capped.prefix(2))
+                            pruned.append(.assistant("[... truncated ...]", toolCalls: []))
+                            pruned.append(contentsOf: capped.suffix(3))
+                            rawPrompt = buildPrompt(from: pruned)
+                        } else {
+                            rawPrompt = buildPrompt(from: capped)
+                        }
+                    }
+                } else {
+                    rawPrompt = buildPrompt(from: conversationHistory)
+                }
                 let unplannedSchemas = await buildToolSchemasWithHandoffs(toolRegistry: toolRegistry)
                 var plannedPrompt = rawPrompt
                 var plannedSchemas = MembraneInternalTools.sortedSchemas(unplannedSchemas)
@@ -1188,7 +1262,14 @@ public struct Agent: AgentRuntime, Sendable {
                     prompt: plannedPrompt,
                     profile: configuration.effectiveContextProfile
                 )
-                let toolSchemas = MembraneInternalTools.sortedSchemas(plannedSchemas)
+                let toolSchemas: [ToolSchema] = {
+                    var schemas = MembraneInternalTools.sortedSchemas(plannedSchemas)
+                    // For strict4k, strip tool descriptions to save ~120 tokens.
+                    if configuration.effectiveContextProfile.preset == .strict4k {
+                        schemas = schemas.map { ToolSchema(name: $0.name, description: $0.name, parameters: $0.parameters) }
+                    }
+                    return schemas
+                }()
                 let structuredMessages = prompt == rawPrompt
                     ? conversationHistory.map(\.inferenceMessage)
                     : nil
@@ -1652,7 +1733,8 @@ public struct Agent: AgentRuntime, Sendable {
                     let transformed = try await executeWithinRemainingTimeout(startTime: startTime) {
                         try await membraneAdapter.transformToolResult(
                             toolName: parsedCall.name,
-                            output: currentToolOutput
+                            output: currentToolOutput,
+                            profile: configuration.effectiveContextProfile
                         )
                     }
                     toolOutputText = transformed.textForConversation
@@ -1774,6 +1856,7 @@ public struct Agent: AgentRuntime, Sendable {
 
                 let handoffStart = ContinuousClock.now
                 let spanId = await tracing?.traceToolCall(name: parsedCall.name, arguments: parsedCall.arguments)
+                await observer?.onHandoff(context: nil, fromAgent: self, toAgent: targetAgent)
 
                 // Find the last user message to use as handoff input
                 let lastUserMessage = conversationHistory.last(where: {

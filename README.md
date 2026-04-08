@@ -122,6 +122,35 @@ Use `try await workspace.validate()` in development or CI to catch malformed spe
 
 ## Examples
 
+### Capability matrix showcase
+
+Swarm now ships with an in-repo capability showcase that exercises the stable surface area in one deterministic matrix:
+
+- agents and tools
+- streaming
+- conversation plus session persistence
+- sequential, parallel, routed, and repeat-until workflows
+- handoffs
+- memory
+- on-device workspace loading
+- guardrails
+- resilience helpers
+- durable checkpoint and resume
+- observability
+- MCP discovery and tool bridging
+- provider selection
+
+Run it locally:
+
+```bash
+swift run SwarmCapabilityShowcase list
+swift run SwarmCapabilityShowcase matrix
+swift run SwarmCapabilityShowcase run handoff
+swift run SwarmCapabilityShowcase smoke
+```
+
+The deterministic matrix is CI-safe. Live-provider smoke coverage is opt-in through environment variables. See [docs/guide/capability-showcase.md](docs/guide/capability-showcase.md) for the scenario catalog and smoke-mode details.
+
 ### Multi-agent pipeline
 
 ```swift

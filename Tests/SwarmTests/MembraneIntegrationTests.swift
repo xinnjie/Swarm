@@ -171,6 +171,29 @@ struct MembraneIntegrationTests {
         )
         #expect(planned.toolSchemas.contains(where: { $0.name == "zzz_tool" }) == false)
     }
+
+    @Test("strict4k planning does not drop tools when below jit threshold")
+    func strict4kPlanningKeepsSmallToolSetsVisible() async throws {
+        let adapter = DefaultMembraneAgentAdapter(
+            configuration: MembraneFeatureConfiguration(jitMinToolCount: 12, defaultJITLoadCount: 2)
+        )
+        let toolSchemas = [
+            ToolSchema(name: "alpha", description: "alpha", parameters: []),
+            ToolSchema(name: "beta", description: "beta", parameters: []),
+            ToolSchema(name: "gamma", description: "gamma", parameters: []),
+        ]
+
+        let planned = try await adapter.plan(
+            prompt: "hello",
+            toolSchemas: toolSchemas,
+            profile: .strict4k
+        )
+
+        let names = Set(planned.toolSchemas.map(\.name))
+        #expect(names.contains("alpha"))
+        #expect(names.contains("beta"))
+        #expect(names.contains("gamma"))
+    }
 }
 
 private func defaultAdapterToolSchemas() -> [ToolSchema] {
@@ -267,7 +290,8 @@ private actor ThrowingMembraneAdapter: MembraneAgentAdapter {
 
     func transformToolResult(
         toolName _: String,
-        output: String
+        output: String,
+        profile _: ContextProfile
     ) async throws -> MembraneToolResultBoundary {
         MembraneToolResultBoundary(textForConversation: output)
     }

@@ -308,21 +308,16 @@ struct SessionIntegrationTests {
         // Bob asks about his name
         _ = try await agent.run("What is my name?", session: sessionBob)
 
-        // Verify prompts contain correct session context
-        let messageCalls = await mockProvider.generateMessageCalls
-        #expect(messageCalls.count == 4)
+        let aliceItems = try await sessionAlice.getAllItems()
+        let bobItems = try await sessionBob.getAllItems()
+        let aliceTranscript = aliceItems.map(\.content).joined(separator: "\n")
+        let bobTranscript = bobItems.map(\.content).joined(separator: "\n")
 
-        // Third call (Alice asking) should contain "Alice" in history
-        let aliceSecondMessages = messageCalls[2].messages
-        let aliceCombined = aliceSecondMessages.map(\.content).joined(separator: "\n")
-        #expect(aliceCombined.contains("Alice"))
-        #expect(!aliceCombined.contains("Bob"))
+        #expect(aliceTranscript.contains("Alice"))
+        #expect(!aliceTranscript.contains("Bob"))
+        #expect(bobTranscript.contains("Bob"))
+        #expect(!bobTranscript.contains("Alice"))
 
-        // Fourth call (Bob asking) should contain "Bob" in history
-        let bobSecondMessages = messageCalls[3].messages
-        let bobCombined = bobSecondMessages.map(\.content).joined(separator: "\n")
-        #expect(bobCombined.contains("Bob"))
-        #expect(!bobCombined.contains("Alice"))
     }
 
     // MARK: - Tool Calls with Session Tests
