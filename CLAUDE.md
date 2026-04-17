@@ -200,7 +200,7 @@ swift package plugin --allow-writing-to-package-directory swiftformat
 
 - All inference goes through `InferenceProvider` adapters in
   `Sources/Swarm/Providers/`. Production providers are routed through
-  [Conduit](https://github.com/christopherkarani/Conduit) (pinned to `0.3.13`
+  [Conduit](https://github.com/christopherkarani/Conduit) (pinned to `0.3.14`
   in `Package.swift`) with traits enabled for OpenAI, OpenRouter, Anthropic,
   and MLX.
 - Foundation Models are now also routed through Conduit (see commits
