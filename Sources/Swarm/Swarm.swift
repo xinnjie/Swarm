@@ -49,7 +49,7 @@
 ///
 public enum Swarm {
     /// The current version of the Swarm framework.
-    public static let version = "0.5.0"
+    public static let version = "0.5.2"
 
     /// The minimum macOS platform version required by Swarm.
     public static let minimumMacOSVersion = "15.0"

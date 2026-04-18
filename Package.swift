@@ -17,7 +17,19 @@ if includeDemo {
 }
 
 var packageDependencies: [Package.Dependency] = [
-    .package(url: "https://github.com/swiftlang/swift-syntax.git", "600.0.0"..<"601.0.0"),
+    // swift-syntax range is intentionally widened to include 601/602 lines.
+    //
+    // Background: Xcode 26 (Swift 6.2.x) ships implicit SwiftPM prebuilts for
+    // swift-syntax via the swiftlang "MacroSupport" prebuilt server. The 600.0.1
+    // prebuilt is built against an older macOS SDK and fails to load on consumer
+    // machines with "SDK does not match" warnings followed by
+    // "Unable to find module dependency: 'SwiftSyntax'" errors. That prebuilt
+    // download cannot be disabled from a consumer project (SWIFT_USE_PREBUILT_MACROS=NO,
+    // IDESwiftPackageEnablePrebuilts=NO, SWIFTPM_DISABLE_PREBUILTS=1 and
+    // -skipMacroValidation all fail to suppress it). Widening the range here lets
+    // SwiftPM resolve to 601+ on Swift 6.2 toolchains, which does not ship the
+    // broken prebuilt.
+    .package(url: "https://github.com/swiftlang/swift-syntax.git", "600.0.0"..<"603.0.0"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.10.1"),
     .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", from: "0.11.0"),
     .package(url: "https://github.com/scinfu/SwiftSoup.git", from: "2.13.2"),
@@ -25,7 +37,7 @@ var packageDependencies: [Package.Dependency] = [
     .package(url: "https://github.com/christopherkarani/Wax.git", exact: "0.1.19"),
     .package(
         url: "https://github.com/christopherkarani/Conduit",
-        exact: "0.3.13",
+        exact: "0.3.14",
         traits: [
             .trait(name: "OpenAI"),
             .trait(name: "OpenRouter"),
