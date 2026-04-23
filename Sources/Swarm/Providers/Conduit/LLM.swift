@@ -25,6 +25,7 @@ public struct LLM: Sendable, InferenceProvider {
 
     private enum Kind: Sendable {
         case openAI(OpenAIConfig)
+        case openAICompatible(OpenAICompatibleConfig)
         case anthropic(AnthropicConfig)
         case openRouter(OpenRouterConfig)
         case minimax(MiniMaxConfig)
@@ -59,6 +60,24 @@ public struct LLM: Sendable, InferenceProvider {
         model: String = "gpt-4o-mini"
     ) -> LLM {
         openAI(apiKey: key, model: model)
+    }
+
+    public static func openAICompatible(
+        baseURL: URL,
+        model: String,
+        apiKey: String? = nil,
+        headers: [String: String] = [:]
+    ) -> LLM {
+        LLM(
+            kind: .openAICompatible(
+                OpenAICompatibleConfig(
+                    baseURL: baseURL,
+                    model: model,
+                    apiKey: apiKey,
+                    headers: headers
+                )
+            )
+        )
     }
 
     public static func anthropic(
@@ -201,6 +220,21 @@ public struct LLM: Sendable, InferenceProvider {
         switch kind {
         case let .openAI(config):
             let provider = OpenAIProvider(apiKey: config.apiKey)
+            let modelID = Self.openAIModelID(config.model)
+            return ConduitInferenceProvider(
+                provider: provider,
+                model: modelID,
+                baseConfig: config.advanced.baseConfig
+            )
+        case let .openAICompatible(config):
+            let authentication = config.apiKey.map(OpenAIAuthentication.bearer) ?? .none
+            let provider = OpenAIProvider(
+                configuration: OpenAIConfiguration(
+                    endpoint: .custom(config.baseURL),
+                    authentication: authentication,
+                    defaultHeaders: config.headers
+                )
+            )
             let modelID = Self.openAIModelID(config.model)
             return ConduitInferenceProvider(
                 provider: provider,
@@ -390,6 +424,20 @@ public extension InferenceProvider where Self == LLM {
         LLM.openAI(key: key, model: model)
     }
 
+    static func openAICompatible(
+        baseURL: URL,
+        model: String,
+        apiKey: String? = nil,
+        headers: [String: String] = [:]
+    ) -> LLM {
+        LLM.openAICompatible(
+            baseURL: baseURL,
+            model: model,
+            apiKey: apiKey,
+            headers: headers
+        )
+    }
+
     static func anthropic(apiKey: String, model: String = "claude-3-5-sonnet-20241022") -> LLM {
         LLM.anthropic(apiKey: apiKey, model: model)
     }
@@ -469,6 +517,26 @@ extension LLM {
         init(apiKey: String, model: String) {
             self.apiKey = apiKey
             self.model = model
+        }
+    }
+
+    struct OpenAICompatibleConfig: Sendable {
+        var baseURL: URL
+        var model: String
+        var apiKey: String?
+        var headers: [String: String]
+        var advanced: AdvancedOptions = .default
+
+        init(
+            baseURL: URL,
+            model: String,
+            apiKey: String?,
+            headers: [String: String]
+        ) {
+            self.baseURL = baseURL
+            self.model = model
+            self.apiKey = apiKey
+            self.headers = headers
         }
     }
 

@@ -388,6 +388,7 @@ public protocol InferenceStreamingProvider: InferenceProvider {
 ```swift
 .anthropic(key: "sk-...")
 .openAI(key: "sk-...")
+.openAICompatible(baseURL: URL(...), model: "...")
 .ollama(model: "llama3")
 .foundationModels       // On-device, iOS 26 / macOS 26
 ```

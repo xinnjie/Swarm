@@ -51,6 +51,27 @@ struct LLMPresetsTests {
         }
     }
 
+    @Test("OpenAI-compatible preset builds Conduit OpenAI-compatible provider")
+    func openAICompatiblePresetBuildsProvider() throws {
+        let baseURL = try #require(URL(string: "https://example.com/v1"))
+        let agent = try Agent(
+            LLM.openAICompatible(
+                baseURL: baseURL,
+                model: "deepseek-ai/DeepSeek-V3",
+                headers: ["x-app": "echo"]
+            )
+        )
+
+        let provider = agent.inferenceProvider
+        #expect(provider != nil)
+        if let provider {
+            #expect(provider is LLM)
+            if let preset = provider as? LLM {
+                #expect(preset._makeProviderForTesting() is ConduitInferenceProvider<OpenAIProvider>)
+            }
+        }
+    }
+
     @Test("MiniMax preset builds Conduit OpenAI-compatible provider")
     func minimaxPresetBuildsProvider() throws {
         let agent = try Agent(.minimax(key: "test-key", model: "minimax-01"))
@@ -107,6 +128,22 @@ struct LLMPresetsTests {
         #expect(metadata.siteURL == url)
         #expect(metadata.appName == "Swarm")
         #expect(metadata.dataCollectionDescription?.contains("deny") == true)
+    }
+
+    @Test("LLM OpenAI-compatible preset preserves custom endpoint configuration")
+    func llmOpenAICompatiblePresetPreservesCustomConfiguration() throws {
+        let baseURL = try #require(URL(string: "https://example.com/v1"))
+        let preset = LLM.openAICompatible(
+            baseURL: baseURL,
+            model: "deepseek-ai/DeepSeek-V3",
+            headers: ["x-app": "echo"]
+        )
+
+        let provider = preset._makeProviderForTesting()
+        let configuration = try #require(mirroredOpenAIConfiguration(from: provider))
+        #expect(configuration.endpoint == .custom(baseURL))
+        #expect(configuration.authentication == .none)
+        #expect(configuration.defaultHeaders["x-app"] == "echo")
     }
 
     @Test("LLM Ollama preset preserves advanced settings")
@@ -196,6 +233,16 @@ private func mirroredOllamaConfiguration(from provider: Any) -> (
         unwrapMirrorOptional(mirror.descendant("numCtx")) as? Int,
         unwrapMirrorOptional(mirror.descendant("healthCheck")) as? Bool
     )
+}
+
+private func mirroredOpenAIConfiguration(from provider: Any) -> OpenAIConfiguration? {
+    guard let rawProvider = unwrapMirrorOptional(Mirror(reflecting: provider).descendant("provider")),
+          let configuration = unwrapMirrorOptional(Mirror(reflecting: rawProvider).descendant("configuration")) as? OpenAIConfiguration
+    else {
+        return nil
+    }
+
+    return configuration
 }
 
 private func unwrapMirrorOptional(_ value: Any?) -> Any? {

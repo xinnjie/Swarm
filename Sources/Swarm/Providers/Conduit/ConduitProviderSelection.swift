@@ -44,6 +44,31 @@ public enum ConduitProviderSelection: Sendable, InferenceProvider {
         return .provider(bridge)
     }
 
+    /// Creates a Conduit-backed OpenAI-compatible provider for a custom endpoint.
+    ///
+    /// - Parameters:
+    ///   - baseURL: The OpenAI-compatible API root URL, e.g. `https://example.com/v1`.
+    ///   - model: The model identifier to send in requests.
+    ///   - apiKey: Optional bearer token. When `nil`, no `Authorization` header is sent.
+    ///   - headers: Additional headers to include in every request.
+    public static func openAICompatible(
+        baseURL: URL,
+        model: String,
+        apiKey: String? = nil,
+        headers: [String: String] = [:]
+    ) -> ConduitProviderSelection {
+        let authentication = apiKey.map(OpenAIAuthentication.bearer) ?? .none
+        let configuration = OpenAIConfiguration(
+            endpoint: .custom(baseURL),
+            authentication: authentication,
+            defaultHeaders: headers
+        )
+        let provider = OpenAIProvider(configuration: configuration)
+        let modelID = openAIModelID(model)
+        let bridge = ConduitInferenceProvider(provider: provider, model: modelID)
+        return .provider(bridge)
+    }
+
     /// Creates a Conduit-backed Apple Foundation Models provider.
     public static func foundationModels(
         configuration: FMConfiguration = .default
@@ -372,6 +397,20 @@ public extension InferenceProvider where Self == ConduitProviderSelection {
 
     static func openAI(apiKey: String, model: String = "gpt-4o") -> ConduitProviderSelection {
         ConduitProviderSelection.openAI(apiKey: apiKey, model: model)
+    }
+
+    static func openAICompatible(
+        baseURL: URL,
+        model: String,
+        apiKey: String? = nil,
+        headers: [String: String] = [:]
+    ) -> ConduitProviderSelection {
+        ConduitProviderSelection.openAICompatible(
+            baseURL: baseURL,
+            model: model,
+            apiKey: apiKey,
+            headers: headers
+        )
     }
 
     static func foundationModels(

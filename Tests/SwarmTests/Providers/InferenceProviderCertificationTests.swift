@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import Swarm
 
@@ -48,6 +49,21 @@ struct InferenceProviderCapabilityContractTests {
         #expect(provider.capabilities.contains(.nativeToolCalling))
         #expect(provider.capabilities.contains(.streamingToolCalls))
         #expect(provider.capabilities.contains(.responseContinuation) == false)
+    }
+
+    @Test("OpenAI-compatible LLM reports the same Conduit bridge capabilities")
+    func openAICompatibleLLMReportsConduitBridgeCapabilities() throws {
+        let baseURL = try #require(URL(string: "https://example.com/v1"))
+        let provider = LLM.openAICompatible(
+            baseURL: baseURL,
+            model: "deepseek-ai/DeepSeek-V3",
+            headers: ["x-app": "echo"]
+        )
+
+        #expect(provider.capabilities.contains(InferenceProviderCapabilities.conversationMessages))
+        #expect(provider.capabilities.contains(InferenceProviderCapabilities.nativeToolCalling))
+        #expect(provider.capabilities.contains(InferenceProviderCapabilities.streamingToolCalls))
+        #expect(provider.capabilities.contains(InferenceProviderCapabilities.responseContinuation) == false)
     }
 
     @Test("MultiProvider capabilities follow the selected route while preserving wrapper conversation support")

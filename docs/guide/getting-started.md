@@ -233,6 +233,16 @@ let agent = try Agent("You are helpful.", inferenceProvider: .anthropic(key: "sk
 // OpenAI
 let agent = try Agent("You are helpful.", inferenceProvider: .openAI(key: "sk-..."))
 
+// Custom OpenAI-compatible endpoint
+let agent = try Agent(
+    "You are helpful.",
+    inferenceProvider: .openAICompatible(
+        baseURL: URL(string: "https://example.com/v1")!,
+        model: "deepseek-ai/DeepSeek-V3",
+        headers: ["x-app": "echo"]
+    )
+)
+
 // Ollama (local)
 let agent = try Agent("You are helpful.", inferenceProvider: .ollama())
 ```

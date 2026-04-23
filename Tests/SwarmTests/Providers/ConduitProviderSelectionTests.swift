@@ -30,6 +30,20 @@ struct ConduitProviderSelectionTests {
         #expect(provider is ConduitInferenceProvider<OpenAIProvider>)
     }
 
+    @Test("Builds OpenAI-compatible Conduit provider for a custom endpoint")
+    func buildsOpenAICompatibleProvider() throws {
+        let baseURL = try #require(URL(string: "https://example.com/v1"))
+        let provider = ConduitProviderSelection
+            .openAICompatible(
+                baseURL: baseURL,
+                model: "deepseek-ai/DeepSeek-V3",
+                headers: ["x-app": "echo"]
+            )
+            .makeProvider()
+
+        #expect(provider is ConduitInferenceProvider<OpenAIProvider>)
+    }
+
 #if canImport(FoundationModels)
     @Test("Builds Foundation Models Conduit provider without streaming tool-call capability")
     func buildsFoundationModelsProvider() {
@@ -132,6 +146,39 @@ struct ConduitProviderSelectionTests {
         #expect(metadata.siteURL == url)
         #expect(metadata.appName == "Swarm")
         #expect(metadata.dataCollectionDescription?.contains("deny") == true)
+    }
+
+    @Test("OpenAI-compatible provider selection preserves custom endpoint configuration")
+    func openAICompatibleSelectionPreservesCustomConfiguration() throws {
+        let baseURL = try #require(URL(string: "https://example.com/v1"))
+        let provider = ConduitProviderSelection
+            .openAICompatible(
+                baseURL: baseURL,
+                model: "deepseek-ai/DeepSeek-V3",
+                headers: ["x-app": "echo"]
+            )
+            .makeProvider()
+
+        let configuration = try #require(mirroredOpenAIConfiguration(from: provider))
+        #expect(configuration.endpoint == .custom(baseURL))
+        #expect(configuration.authentication == .none)
+        #expect(configuration.defaultHeaders["x-app"] == "echo")
+    }
+
+    @Test("OpenAI-compatible provider selection preserves bearer authentication")
+    func openAICompatibleSelectionPreservesBearerAuthentication() throws {
+        let baseURL = try #require(URL(string: "https://example.com/v1"))
+        let provider = ConduitProviderSelection
+            .openAICompatible(
+                baseURL: baseURL,
+                model: "gpt-4o-mini",
+                apiKey: "test-key"
+            )
+            .makeProvider()
+
+        let configuration = try #require(mirroredOpenAIConfiguration(from: provider))
+        #expect(configuration.endpoint == .custom(baseURL))
+        #expect(configuration.authentication == .bearer("test-key"))
     }
 
     @Test("Ollama provider selection preserves advanced settings")
@@ -244,6 +291,16 @@ private func mirroredOllamaConfiguration(from provider: Any) -> (
         unwrapMirrorOptional(mirror.descendant("numCtx")) as? Int,
         unwrapMirrorOptional(mirror.descendant("healthCheck")) as? Bool
     )
+}
+
+private func mirroredOpenAIConfiguration(from provider: Any) -> OpenAIConfiguration? {
+    guard let rawProvider = unwrapMirrorOptional(Mirror(reflecting: provider).descendant("provider")),
+          let configuration = unwrapMirrorOptional(Mirror(reflecting: rawProvider).descendant("configuration")) as? OpenAIConfiguration
+    else {
+        return nil
+    }
+
+    return configuration
 }
 
 private func unwrapMirrorOptional(_ value: Any?) -> Any? {
