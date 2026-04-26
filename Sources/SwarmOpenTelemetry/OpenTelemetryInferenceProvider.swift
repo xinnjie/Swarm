@@ -10,7 +10,7 @@ import Swarm
 /// Advanced provider protocols are exposed through conditional conformances, so
 /// wrapping a provider does not advertise capabilities the underlying provider
 /// cannot actually satisfy.
-public struct OpenTelemetryInferenceProvider<Base: InferenceProvider>: @unchecked Sendable,
+struct OpenTelemetryInferenceProvider<Base: InferenceProvider>: @unchecked Sendable,
     CapabilityReportingInferenceProvider,
     InferenceProviderMetadata
 {
@@ -85,7 +85,7 @@ public struct OpenTelemetryInferenceProvider<Base: InferenceProvider>: @unchecke
 }
 
 extension OpenTelemetryInferenceProvider: ConversationInferenceProvider where Base: ConversationInferenceProvider {
-    public func generate(messages: [InferenceMessage], options: InferenceOptions) async throws -> String {
+  func generate(messages: [InferenceMessage], options: InferenceOptions) async throws -> String {
         try await withLLMSpan(operation: "chat", inputLength: Self.inputLength(messages), options: options) { span in
             span.setAttribute(key: "gen_ai.request.messages.count", value: messages.count)
             let response = try await base.generate(messages: messages, options: options)
@@ -94,7 +94,7 @@ extension OpenTelemetryInferenceProvider: ConversationInferenceProvider where Ba
         }
     }
 
-    public func generateWithToolCalls(
+  func generateWithToolCalls(
         messages: [InferenceMessage],
         tools: [ToolSchema],
         options: InferenceOptions
@@ -110,7 +110,7 @@ extension OpenTelemetryInferenceProvider: ConversationInferenceProvider where Ba
 }
 
 extension OpenTelemetryInferenceProvider: StreamingConversationInferenceProvider where Base: StreamingConversationInferenceProvider {
-    public func stream(
+  func stream(
         messages: [InferenceMessage],
         options: InferenceOptions
     ) -> AsyncThrowingStream<String, Error> {
@@ -127,7 +127,7 @@ extension OpenTelemetryInferenceProvider: StreamingConversationInferenceProvider
 }
 
 extension OpenTelemetryInferenceProvider: ToolCallStreamingInferenceProvider where Base: ToolCallStreamingInferenceProvider {
-    public func streamWithToolCalls(
+  func streamWithToolCalls(
         prompt: String,
         tools: [ToolSchema],
         options: InferenceOptions
@@ -140,7 +140,7 @@ extension OpenTelemetryInferenceProvider: ToolCallStreamingInferenceProvider whe
 
 extension OpenTelemetryInferenceProvider: ToolCallStreamingConversationInferenceProvider
 where Base: ToolCallStreamingConversationInferenceProvider {
-    public func streamWithToolCalls(
+  func streamWithToolCalls(
         messages: [InferenceMessage],
         tools: [ToolSchema],
         options: InferenceOptions
@@ -152,7 +152,7 @@ where Base: ToolCallStreamingConversationInferenceProvider {
 }
 
 extension OpenTelemetryInferenceProvider: StructuredOutputInferenceProvider where Base: StructuredOutputInferenceProvider {
-    public func generateStructured(
+  func generateStructured(
         prompt: String,
         request: StructuredOutputRequest,
         options: InferenceOptions
@@ -168,7 +168,7 @@ extension OpenTelemetryInferenceProvider: StructuredOutputInferenceProvider wher
 
 extension OpenTelemetryInferenceProvider: StructuredOutputConversationInferenceProvider
 where Base: StructuredOutputConversationInferenceProvider {
-    public func generateStructured(
+  func generateStructured(
         messages: [InferenceMessage],
         request: StructuredOutputRequest,
         options: InferenceOptions
@@ -301,15 +301,6 @@ private extension OpenTelemetryInferenceProvider {
     }
 }
 
-public extension InferenceProvider {
-    /// Wraps this provider so LLM requests emit OpenTelemetry GenAI spans.
-    func instrumentedWithOpenTelemetry(
-        tracer: any OpenTelemetryApi.Tracer = OpenTelemetry.instance.tracerProvider.get(
-            instrumentationName: "swarm.llm",
-            instrumentationVersion: nil
-        ),
-        captureContent: Bool = false
-    ) -> OpenTelemetryInferenceProvider<Self> {
-        OpenTelemetryInferenceProvider(self, tracer: tracer, captureContent: captureContent)
-    }
-}
+protocol OpenTelemetryInstrumentedInferenceProvider {}
+
+extension OpenTelemetryInferenceProvider: OpenTelemetryInstrumentedInferenceProvider {}
