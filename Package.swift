@@ -186,6 +186,7 @@ var packageTargets: [Target] = [
         dependencies: [
             "Swarm",
             "SwarmOpenTelemetry",
+            .product(name: "OpenTelemetrySdk", package: "opentelemetry-swift-core"),
         ],
         swiftSettings: swarmSwiftSettings
     )

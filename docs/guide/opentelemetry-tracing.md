@@ -4,10 +4,13 @@ Swarm ships OpenTelemetry support as an optional product named `SwarmOpenTelemet
 Use it when you want LLM requests and their underlying HTTP calls to show up in
 the same distributed trace as the rest of your app.
 
-Swarm's OpenTelemetry integration is intentionally scoped to inference-provider
-spans:
+Swarm's OpenTelemetry integration is scoped to agent turns and the LLM calls made
+inside those turns:
 
-- `provider.instrumentedWithOpenTelemetry()` wraps an `InferenceProvider` and emits GenAI spans for LLM calls.
+- `agent.instrumentedWithOpenTelemetry()` creates one parent span for each
+  user-facing agent operation.
+- During that operation, Swarm automatically wraps the resolved
+  `InferenceProvider` and emits child GenAI spans for LLM calls.
 
 If you also want HTTP spans or `traceparent` header propagation for the
 underlying LLM network requests, install OpenTelemetry Swift's
@@ -102,7 +105,8 @@ policy: decide where HTTP spans and propagated trace headers are allowed.
 
 ## Trace an Agent Run
 
-Wrap the LLM provider before passing it to the agent.
+Wrap the agent once. Swarm will instrument whichever inference provider that
+agent resolves for the run.
 
 ```swift
 import Swarm
@@ -110,16 +114,13 @@ import SwarmOpenTelemetry
 
 configureTracing()
 
-let provider = LLM.openAI(apiKey: "sk-...", model: "gpt-4.1-mini")
-    .instrumentedWithOpenTelemetry()
-
 let agent = try Agent(
     "Answer briefly and use tools when useful.",
     configuration: .default.name("support-agent"),
-    inferenceProvider: provider
+    inferenceProvider: LLM.openAI(apiKey: "sk-...", model: "gpt-4.1-mini")
 ) {
     CalculatorTool()
-}
+}.instrumentedWithOpenTelemetry()
 
 let result = try await agent.run("What is 18% of 245?")
 print(result.output)
@@ -127,9 +128,14 @@ print(result.output)
 
 This creates:
 
-- LLM client spans named like `chat gpt-4.1-mini`.
+- An agent parent span named like `swarm.agent.run support-agent`.
+- LLM child spans named like `chat gpt-4.1-mini`.
 - URLSession HTTP spans for provider network requests, if your app installed URLSession instrumentation.
 - `traceparent` and `baggage` headers on instrumented URLSession requests, if your app enabled header injection.
+
+If one agent run makes multiple LLM calls, all of those LLM spans share the same
+trace as the agent span. With URLSession instrumentation enabled, provider HTTP
+requests made inside those LLM spans inherit that same current trace context.
 
 ## Control Header Injection
 
@@ -160,11 +166,13 @@ but do not want to propagate tracing headers to an upstream provider.
 LLM spans record request shape, provider metadata, token usage, output length,
 and errors. They do not record prompts or model output by default.
 
-If your deployment policy allows content capture, opt in per provider wrapper:
+If your deployment policy allows content capture, opt in on the agent wrapper:
 
 ```swift
-let provider = LLM.anthropic(apiKey: "sk-...", model: "claude-3-5-sonnet-latest")
-    .instrumentedWithOpenTelemetry(captureContent: true)
+let agent = try Agent(
+    "Answer briefly.",
+    inferenceProvider: LLM.anthropic(apiKey: "sk-...", model: "claude-3-5-sonnet-latest")
+) {}.instrumentedWithOpenTelemetry(captureContent: true)
 ```
 
 `captureContent` currently marks the span with `swarm.capture_content.enabled`.
@@ -173,7 +181,8 @@ before adding sensitive content to span attributes or events.
 
 ## Platform Notes
 
-LLM span wrapping works anywhere the OpenTelemetry API and Swarm targets build.
+Agent and LLM span wrapping works anywhere the OpenTelemetry API and Swarm
+targets build.
 URLSession auto-instrumentation is available when the `URLSessionInstrumentation`
 module is importable by your application. On unsupported platforms, skip the
-URLSession instrumentation setup and keep only the Swarm provider wrapper.
+URLSession instrumentation setup and keep only the Swarm agent wrapper.
