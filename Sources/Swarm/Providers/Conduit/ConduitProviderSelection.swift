@@ -10,10 +10,6 @@ import Foundation
 import FoundationModels
 #endif
 
-#if canImport(FoundationModels)
-import FoundationModels
-#endif
-
 /// Convenience selection for Conduit-backed inference providers.
 ///
 /// This hides Conduit types while keeping a lightweight call-site API.
@@ -70,6 +66,7 @@ public enum ConduitProviderSelection: Sendable, InferenceProvider {
     }
 
     /// Creates a Conduit-backed Apple Foundation Models provider.
+    @available(macOS 26.0, iOS 26.0, watchOS 26.0, tvOS 26.0, visionOS 26.0, *)
     public static func foundationModels(
         configuration: FMConfiguration = .default
     ) -> ConduitProviderSelection {
@@ -413,6 +410,7 @@ public extension InferenceProvider where Self == ConduitProviderSelection {
         )
     }
 
+    @available(macOS 26.0, iOS 26.0, watchOS 26.0, tvOS 26.0, visionOS 26.0, *)
     static func foundationModels(
         configuration: FMConfiguration = .default
     ) -> ConduitProviderSelection {
