@@ -16,10 +16,45 @@ func OpenTelemetryAnyInferenceProvider(
         captureContent: captureContent
     )
 
-    if base is any ToolCallStreamingConversationInferenceProvider
-        || base is any ToolCallStreamingInferenceProvider
+    if base is any ToolCallStreamingConversationInferenceProvider,
+       base is any StreamingConversationInferenceProvider,
+       base is any StructuredOutputConversationInferenceProvider
     {
-        return OpenTelemetryAnyToolStreamingInferenceProvider(core: core)
+        return OpenTelemetryAnyFullConversationToolStreamingInferenceProvider(core: core)
+    }
+
+    if base is any ToolCallStreamingConversationInferenceProvider,
+       base is any StreamingConversationInferenceProvider
+    {
+        return OpenTelemetryAnyStreamingConversationToolStreamingInferenceProvider(core: core)
+    }
+
+    if base is any ToolCallStreamingConversationInferenceProvider,
+       base is any StructuredOutputConversationInferenceProvider
+    {
+        return OpenTelemetryAnyStructuredConversationToolStreamingInferenceProvider(core: core)
+    }
+
+    if base is any ToolCallStreamingConversationInferenceProvider {
+        return OpenTelemetryAnyConversationToolStreamingInferenceProvider(core: core)
+    }
+
+    if base is any ToolCallStreamingInferenceProvider {
+        return OpenTelemetryAnyPromptToolStreamingInferenceProvider(core: core)
+    }
+
+    if base is any StreamingConversationInferenceProvider,
+       base is any StructuredOutputConversationInferenceProvider
+    {
+        return OpenTelemetryAnyStreamingStructuredConversationInferenceProvider(core: core)
+    }
+
+    if base is any StreamingConversationInferenceProvider {
+        return OpenTelemetryAnyStreamingConversationInferenceProvider(core: core)
+    }
+
+    if base is any StructuredOutputConversationInferenceProvider {
+        return OpenTelemetryAnyStructuredConversationInferenceProvider(core: core)
     }
 
     if base is any ConversationInferenceProvider {
@@ -423,6 +458,153 @@ private struct OpenTelemetryAnyConversationInferenceProvider: @unchecked Sendabl
     CapabilityReportingInferenceProvider,
     InferenceProviderMetadata,
     ConversationInferenceProvider,
+    OpenTelemetryInstrumentedInferenceProvider
+{
+    let core: OpenTelemetryAnyInferenceProviderCore
+
+    var capabilities: InferenceProviderCapabilities { core.capabilities }
+    var providerName: String? { core.metadata?.providerName }
+    var modelName: String? { core.metadata?.modelName }
+    var endpointURL: URL? { core.metadata?.endpointURL }
+
+    func generate(prompt: String, options: InferenceOptions) async throws -> String {
+        try await core.generate(prompt: prompt, options: options)
+    }
+
+    func stream(prompt: String, options: InferenceOptions) -> AsyncThrowingStream<String, Error> {
+        core.stream(prompt: prompt, options: options)
+    }
+
+    func generateWithToolCalls(
+        prompt: String,
+        tools: [ToolSchema],
+        options: InferenceOptions
+    ) async throws -> InferenceResponse {
+        try await core.generateWithToolCalls(prompt: prompt, tools: tools, options: options)
+    }
+
+    func generate(messages: [InferenceMessage], options: InferenceOptions) async throws -> String {
+        try await core.generate(messages: messages, options: options)
+    }
+
+    func stream(messages: [InferenceMessage], options: InferenceOptions) -> AsyncThrowingStream<String, Error> {
+        core.stream(messages: messages, options: options)
+    }
+
+    func generateWithToolCalls(
+        messages: [InferenceMessage],
+        tools: [ToolSchema],
+        options: InferenceOptions
+    ) async throws -> InferenceResponse {
+        try await core.generateWithToolCalls(messages: messages, tools: tools, options: options)
+    }
+}
+
+private struct OpenTelemetryAnyStreamingConversationInferenceProvider: @unchecked Sendable,
+    InferenceProvider,
+    CapabilityReportingInferenceProvider,
+    InferenceProviderMetadata,
+    ConversationInferenceProvider,
+    StreamingConversationInferenceProvider,
+    OpenTelemetryInstrumentedInferenceProvider
+{
+    let core: OpenTelemetryAnyInferenceProviderCore
+
+    var capabilities: InferenceProviderCapabilities { core.capabilities }
+    var providerName: String? { core.metadata?.providerName }
+    var modelName: String? { core.metadata?.modelName }
+    var endpointURL: URL? { core.metadata?.endpointURL }
+
+    func generate(prompt: String, options: InferenceOptions) async throws -> String {
+        try await core.generate(prompt: prompt, options: options)
+    }
+
+    func stream(prompt: String, options: InferenceOptions) -> AsyncThrowingStream<String, Error> {
+        core.stream(prompt: prompt, options: options)
+    }
+
+    func generateWithToolCalls(
+        prompt: String,
+        tools: [ToolSchema],
+        options: InferenceOptions
+    ) async throws -> InferenceResponse {
+        try await core.generateWithToolCalls(prompt: prompt, tools: tools, options: options)
+    }
+
+    func generate(messages: [InferenceMessage], options: InferenceOptions) async throws -> String {
+        try await core.generate(messages: messages, options: options)
+    }
+
+    func stream(messages: [InferenceMessage], options: InferenceOptions) -> AsyncThrowingStream<String, Error> {
+        core.stream(messages: messages, options: options)
+    }
+
+    func generateWithToolCalls(
+        messages: [InferenceMessage],
+        tools: [ToolSchema],
+        options: InferenceOptions
+    ) async throws -> InferenceResponse {
+        try await core.generateWithToolCalls(messages: messages, tools: tools, options: options)
+    }
+}
+
+private struct OpenTelemetryAnyStructuredConversationInferenceProvider: @unchecked Sendable,
+    InferenceProvider,
+    CapabilityReportingInferenceProvider,
+    InferenceProviderMetadata,
+    ConversationInferenceProvider,
+    StructuredOutputConversationInferenceProvider,
+    OpenTelemetryInstrumentedInferenceProvider
+{
+    let core: OpenTelemetryAnyInferenceProviderCore
+
+    var capabilities: InferenceProviderCapabilities { core.capabilities }
+    var providerName: String? { core.metadata?.providerName }
+    var modelName: String? { core.metadata?.modelName }
+    var endpointURL: URL? { core.metadata?.endpointURL }
+
+    func generate(prompt: String, options: InferenceOptions) async throws -> String {
+        try await core.generate(prompt: prompt, options: options)
+    }
+
+    func stream(prompt: String, options: InferenceOptions) -> AsyncThrowingStream<String, Error> {
+        core.stream(prompt: prompt, options: options)
+    }
+
+    func generateWithToolCalls(
+        prompt: String,
+        tools: [ToolSchema],
+        options: InferenceOptions
+    ) async throws -> InferenceResponse {
+        try await core.generateWithToolCalls(prompt: prompt, tools: tools, options: options)
+    }
+
+    func generate(messages: [InferenceMessage], options: InferenceOptions) async throws -> String {
+        try await core.generate(messages: messages, options: options)
+    }
+
+    func generateWithToolCalls(
+        messages: [InferenceMessage],
+        tools: [ToolSchema],
+        options: InferenceOptions
+    ) async throws -> InferenceResponse {
+        try await core.generateWithToolCalls(messages: messages, tools: tools, options: options)
+    }
+
+    func generateStructured(
+        messages: [InferenceMessage],
+        request: StructuredOutputRequest,
+        options: InferenceOptions
+    ) async throws -> StructuredOutputResult {
+        try await core.generateStructured(messages: messages, request: request, options: options)
+    }
+}
+
+private struct OpenTelemetryAnyStreamingStructuredConversationInferenceProvider: @unchecked Sendable,
+    InferenceProvider,
+    CapabilityReportingInferenceProvider,
+    InferenceProviderMetadata,
+    ConversationInferenceProvider,
     StreamingConversationInferenceProvider,
     StructuredOutputConversationInferenceProvider,
     OpenTelemetryInstrumentedInferenceProvider
@@ -475,15 +657,51 @@ private struct OpenTelemetryAnyConversationInferenceProvider: @unchecked Sendabl
     }
 }
 
-private struct OpenTelemetryAnyToolStreamingInferenceProvider: @unchecked Sendable,
+private struct OpenTelemetryAnyPromptToolStreamingInferenceProvider: @unchecked Sendable,
+    InferenceProvider,
+    CapabilityReportingInferenceProvider,
+    InferenceProviderMetadata,
+    ToolCallStreamingInferenceProvider,
+    OpenTelemetryInstrumentedInferenceProvider
+{
+    let core: OpenTelemetryAnyInferenceProviderCore
+
+    var capabilities: InferenceProviderCapabilities { core.capabilities }
+    var providerName: String? { core.metadata?.providerName }
+    var modelName: String? { core.metadata?.modelName }
+    var endpointURL: URL? { core.metadata?.endpointURL }
+
+    func generate(prompt: String, options: InferenceOptions) async throws -> String {
+        try await core.generate(prompt: prompt, options: options)
+    }
+
+    func stream(prompt: String, options: InferenceOptions) -> AsyncThrowingStream<String, Error> {
+        core.stream(prompt: prompt, options: options)
+    }
+
+    func generateWithToolCalls(
+        prompt: String,
+        tools: [ToolSchema],
+        options: InferenceOptions
+    ) async throws -> InferenceResponse {
+        try await core.generateWithToolCalls(prompt: prompt, tools: tools, options: options)
+    }
+
+    func streamWithToolCalls(
+        prompt: String,
+        tools: [ToolSchema],
+        options: InferenceOptions
+    ) -> AsyncThrowingStream<InferenceStreamUpdate, Error> {
+        core.streamWithToolCalls(prompt: prompt, tools: tools, options: options)
+    }
+}
+
+private struct OpenTelemetryAnyConversationToolStreamingInferenceProvider: @unchecked Sendable,
     InferenceProvider,
     CapabilityReportingInferenceProvider,
     InferenceProviderMetadata,
     ConversationInferenceProvider,
-    StreamingConversationInferenceProvider,
-    ToolCallStreamingInferenceProvider,
     ToolCallStreamingConversationInferenceProvider,
-    StructuredOutputConversationInferenceProvider,
     OpenTelemetryInstrumentedInferenceProvider
 {
     let core: OpenTelemetryAnyInferenceProviderCore
@@ -531,6 +749,182 @@ private struct OpenTelemetryAnyToolStreamingInferenceProvider: @unchecked Sendab
         options: InferenceOptions
     ) -> AsyncThrowingStream<InferenceStreamUpdate, Error> {
         core.streamWithToolCalls(prompt: prompt, tools: tools, options: options)
+    }
+
+    func streamWithToolCalls(
+        messages: [InferenceMessage],
+        tools: [ToolSchema],
+        options: InferenceOptions
+    ) -> AsyncThrowingStream<InferenceStreamUpdate, Error> {
+        core.streamWithToolCalls(messages: messages, tools: tools, options: options)
+    }
+}
+
+private struct OpenTelemetryAnyStreamingConversationToolStreamingInferenceProvider: @unchecked Sendable,
+    InferenceProvider,
+    CapabilityReportingInferenceProvider,
+    InferenceProviderMetadata,
+    ConversationInferenceProvider,
+    StreamingConversationInferenceProvider,
+    ToolCallStreamingConversationInferenceProvider,
+    OpenTelemetryInstrumentedInferenceProvider
+{
+    let core: OpenTelemetryAnyInferenceProviderCore
+
+    var capabilities: InferenceProviderCapabilities { core.capabilities }
+    var providerName: String? { core.metadata?.providerName }
+    var modelName: String? { core.metadata?.modelName }
+    var endpointURL: URL? { core.metadata?.endpointURL }
+
+    func generate(prompt: String, options: InferenceOptions) async throws -> String {
+        try await core.generate(prompt: prompt, options: options)
+    }
+
+    func stream(prompt: String, options: InferenceOptions) -> AsyncThrowingStream<String, Error> {
+        core.stream(prompt: prompt, options: options)
+    }
+
+    func generateWithToolCalls(
+        prompt: String,
+        tools: [ToolSchema],
+        options: InferenceOptions
+    ) async throws -> InferenceResponse {
+        try await core.generateWithToolCalls(prompt: prompt, tools: tools, options: options)
+    }
+
+    func generate(messages: [InferenceMessage], options: InferenceOptions) async throws -> String {
+        try await core.generate(messages: messages, options: options)
+    }
+
+    func stream(messages: [InferenceMessage], options: InferenceOptions) -> AsyncThrowingStream<String, Error> {
+        core.stream(messages: messages, options: options)
+    }
+
+    func generateWithToolCalls(
+        messages: [InferenceMessage],
+        tools: [ToolSchema],
+        options: InferenceOptions
+    ) async throws -> InferenceResponse {
+        try await core.generateWithToolCalls(messages: messages, tools: tools, options: options)
+    }
+
+    func streamWithToolCalls(
+        messages: [InferenceMessage],
+        tools: [ToolSchema],
+        options: InferenceOptions
+    ) -> AsyncThrowingStream<InferenceStreamUpdate, Error> {
+        core.streamWithToolCalls(messages: messages, tools: tools, options: options)
+    }
+}
+
+private struct OpenTelemetryAnyStructuredConversationToolStreamingInferenceProvider: @unchecked Sendable,
+    InferenceProvider,
+    CapabilityReportingInferenceProvider,
+    InferenceProviderMetadata,
+    ConversationInferenceProvider,
+    ToolCallStreamingConversationInferenceProvider,
+    StructuredOutputConversationInferenceProvider,
+    OpenTelemetryInstrumentedInferenceProvider
+{
+    let core: OpenTelemetryAnyInferenceProviderCore
+
+    var capabilities: InferenceProviderCapabilities { core.capabilities }
+    var providerName: String? { core.metadata?.providerName }
+    var modelName: String? { core.metadata?.modelName }
+    var endpointURL: URL? { core.metadata?.endpointURL }
+
+    func generate(prompt: String, options: InferenceOptions) async throws -> String {
+        try await core.generate(prompt: prompt, options: options)
+    }
+
+    func stream(prompt: String, options: InferenceOptions) -> AsyncThrowingStream<String, Error> {
+        core.stream(prompt: prompt, options: options)
+    }
+
+    func generateWithToolCalls(
+        prompt: String,
+        tools: [ToolSchema],
+        options: InferenceOptions
+    ) async throws -> InferenceResponse {
+        try await core.generateWithToolCalls(prompt: prompt, tools: tools, options: options)
+    }
+
+    func generate(messages: [InferenceMessage], options: InferenceOptions) async throws -> String {
+        try await core.generate(messages: messages, options: options)
+    }
+
+    func generateWithToolCalls(
+        messages: [InferenceMessage],
+        tools: [ToolSchema],
+        options: InferenceOptions
+    ) async throws -> InferenceResponse {
+        try await core.generateWithToolCalls(messages: messages, tools: tools, options: options)
+    }
+
+    func streamWithToolCalls(
+        messages: [InferenceMessage],
+        tools: [ToolSchema],
+        options: InferenceOptions
+    ) -> AsyncThrowingStream<InferenceStreamUpdate, Error> {
+        core.streamWithToolCalls(messages: messages, tools: tools, options: options)
+    }
+
+    func generateStructured(
+        messages: [InferenceMessage],
+        request: StructuredOutputRequest,
+        options: InferenceOptions
+    ) async throws -> StructuredOutputResult {
+        try await core.generateStructured(messages: messages, request: request, options: options)
+    }
+}
+
+private struct OpenTelemetryAnyFullConversationToolStreamingInferenceProvider: @unchecked Sendable,
+    InferenceProvider,
+    CapabilityReportingInferenceProvider,
+    InferenceProviderMetadata,
+    ConversationInferenceProvider,
+    StreamingConversationInferenceProvider,
+    ToolCallStreamingConversationInferenceProvider,
+    StructuredOutputConversationInferenceProvider,
+    OpenTelemetryInstrumentedInferenceProvider
+{
+    let core: OpenTelemetryAnyInferenceProviderCore
+
+    var capabilities: InferenceProviderCapabilities { core.capabilities }
+    var providerName: String? { core.metadata?.providerName }
+    var modelName: String? { core.metadata?.modelName }
+    var endpointURL: URL? { core.metadata?.endpointURL }
+
+    func generate(prompt: String, options: InferenceOptions) async throws -> String {
+        try await core.generate(prompt: prompt, options: options)
+    }
+
+    func stream(prompt: String, options: InferenceOptions) -> AsyncThrowingStream<String, Error> {
+        core.stream(prompt: prompt, options: options)
+    }
+
+    func generateWithToolCalls(
+        prompt: String,
+        tools: [ToolSchema],
+        options: InferenceOptions
+    ) async throws -> InferenceResponse {
+        try await core.generateWithToolCalls(prompt: prompt, tools: tools, options: options)
+    }
+
+    func generate(messages: [InferenceMessage], options: InferenceOptions) async throws -> String {
+        try await core.generate(messages: messages, options: options)
+    }
+
+    func stream(messages: [InferenceMessage], options: InferenceOptions) -> AsyncThrowingStream<String, Error> {
+        core.stream(messages: messages, options: options)
+    }
+
+    func generateWithToolCalls(
+        messages: [InferenceMessage],
+        tools: [ToolSchema],
+        options: InferenceOptions
+    ) async throws -> InferenceResponse {
+        try await core.generateWithToolCalls(messages: messages, tools: tools, options: options)
     }
 
     func streamWithToolCalls(

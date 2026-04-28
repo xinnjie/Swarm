@@ -1,4 +1,5 @@
 import Foundation
+import OpenTelemetryApi
 import OpenTelemetrySdk
 import Testing
 import Swarm
@@ -128,6 +129,30 @@ func openTelemetryWrapperPreservesSupportedToolStreaming() {
 
     #expect(provider is any ToolCallStreamingInferenceProvider)
     #expect(wrapped.capabilities.contains(.streamingToolCalls))
+}
+
+@Test("Raw provider OpenTelemetry instrumentation is public API")
+func rawProviderOpenTelemetryInstrumentationIsPublicAPI() async throws {
+    let provider = PromptOnlyProvider().instrumentedWithOpenTelemetry()
+
+    let output = try await provider.generate(prompt: "hello", options: .default)
+
+    #expect(output == "hello")
+}
+
+@Test("Erased OpenTelemetry wrapper preserves prompt-only tool streaming shape")
+func erasedOpenTelemetryWrapperPreservesPromptOnlyToolStreamingShape() {
+    let wrapped = OpenTelemetryAnyInferenceProvider(
+        ToolStreamingProvider(),
+        tracer: OpenTelemetry.instance.tracerProvider.get(instrumentationName: "test.llm"),
+        captureContent: false
+    )
+
+    #expect(wrapped is any ToolCallStreamingInferenceProvider)
+    #expect(!(wrapped is any ConversationInferenceProvider))
+    #expect(!(wrapped is any ToolCallStreamingConversationInferenceProvider))
+    #expect(!InferenceProviderCapabilities.resolved(for: wrapped).contains(.conversationMessages))
+    #expect(InferenceProviderCapabilities.resolved(for: wrapped).contains(.streamingToolCalls))
 }
 
 @Test("Agent OpenTelemetry wrapper creates one parent trace for multiple LLM calls")

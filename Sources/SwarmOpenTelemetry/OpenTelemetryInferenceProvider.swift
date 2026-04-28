@@ -10,7 +10,7 @@ import Swarm
 /// Advanced provider protocols are exposed through conditional conformances, so
 /// wrapping a provider does not advertise capabilities the underlying provider
 /// cannot actually satisfy.
-struct OpenTelemetryInferenceProvider<Base: InferenceProvider>: @unchecked Sendable,
+public struct OpenTelemetryInferenceProvider<Base: InferenceProvider>: @unchecked Sendable,
     CapabilityReportingInferenceProvider,
     InferenceProviderMetadata
 {
@@ -85,7 +85,7 @@ struct OpenTelemetryInferenceProvider<Base: InferenceProvider>: @unchecked Senda
 }
 
 extension OpenTelemetryInferenceProvider: ConversationInferenceProvider where Base: ConversationInferenceProvider {
-  func generate(messages: [InferenceMessage], options: InferenceOptions) async throws -> String {
+  public func generate(messages: [InferenceMessage], options: InferenceOptions) async throws -> String {
         try await withLLMSpan(operation: "chat", inputLength: Self.inputLength(messages), options: options) { span in
             span.setAttribute(key: "gen_ai.request.messages.count", value: messages.count)
             let response = try await base.generate(messages: messages, options: options)
@@ -94,7 +94,7 @@ extension OpenTelemetryInferenceProvider: ConversationInferenceProvider where Ba
         }
     }
 
-  func generateWithToolCalls(
+  public func generateWithToolCalls(
         messages: [InferenceMessage],
         tools: [ToolSchema],
         options: InferenceOptions
@@ -110,7 +110,7 @@ extension OpenTelemetryInferenceProvider: ConversationInferenceProvider where Ba
 }
 
 extension OpenTelemetryInferenceProvider: StreamingConversationInferenceProvider where Base: StreamingConversationInferenceProvider {
-  func stream(
+  public func stream(
         messages: [InferenceMessage],
         options: InferenceOptions
     ) -> AsyncThrowingStream<String, Error> {
@@ -127,7 +127,7 @@ extension OpenTelemetryInferenceProvider: StreamingConversationInferenceProvider
 }
 
 extension OpenTelemetryInferenceProvider: ToolCallStreamingInferenceProvider where Base: ToolCallStreamingInferenceProvider {
-  func streamWithToolCalls(
+  public func streamWithToolCalls(
         prompt: String,
         tools: [ToolSchema],
         options: InferenceOptions
@@ -140,7 +140,7 @@ extension OpenTelemetryInferenceProvider: ToolCallStreamingInferenceProvider whe
 
 extension OpenTelemetryInferenceProvider: ToolCallStreamingConversationInferenceProvider
 where Base: ToolCallStreamingConversationInferenceProvider {
-  func streamWithToolCalls(
+  public func streamWithToolCalls(
         messages: [InferenceMessage],
         tools: [ToolSchema],
         options: InferenceOptions
@@ -152,7 +152,7 @@ where Base: ToolCallStreamingConversationInferenceProvider {
 }
 
 extension OpenTelemetryInferenceProvider: StructuredOutputInferenceProvider where Base: StructuredOutputInferenceProvider {
-  func generateStructured(
+  public func generateStructured(
         prompt: String,
         request: StructuredOutputRequest,
         options: InferenceOptions
@@ -168,7 +168,7 @@ extension OpenTelemetryInferenceProvider: StructuredOutputInferenceProvider wher
 
 extension OpenTelemetryInferenceProvider: StructuredOutputConversationInferenceProvider
 where Base: StructuredOutputConversationInferenceProvider {
-  func generateStructured(
+  public func generateStructured(
         messages: [InferenceMessage],
         request: StructuredOutputRequest,
         options: InferenceOptions
@@ -304,3 +304,20 @@ private extension OpenTelemetryInferenceProvider {
 protocol OpenTelemetryInstrumentedInferenceProvider {}
 
 extension OpenTelemetryInferenceProvider: OpenTelemetryInstrumentedInferenceProvider {}
+
+public extension InferenceProvider {
+    /// Wraps this provider so each LLM request emits an OpenTelemetry GenAI span.
+    func instrumentedWithOpenTelemetry(
+        tracer: any OpenTelemetryApi.Tracer = OpenTelemetry.instance.tracerProvider.get(
+            instrumentationName: "swarm.llm",
+            instrumentationVersion: nil
+        ),
+        captureContent: Bool = false
+    ) -> some InferenceProvider {
+        OpenTelemetryInferenceProvider(
+            self,
+            tracer: tracer,
+            captureContent: captureContent
+        )
+    }
+}
